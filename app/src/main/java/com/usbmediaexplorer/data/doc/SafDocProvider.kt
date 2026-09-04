@@ -187,6 +187,7 @@ class SafDocProvider(
             if (sourceUri.authority != targetUri.authority) return@withContext null
             runCatching {
                 val sourceParent = parentOf(node)?.uri?.let { documentUriFor(it) }
+                    ?: return@withContext null
                 DocumentsContract.moveDocument(resolver, sourceUri, sourceParent, targetUri)
                     ?.let { node(it) }
             }.getOrNull()

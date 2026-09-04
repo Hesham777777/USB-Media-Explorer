@@ -180,8 +180,8 @@
     <string name="player_track_default">افتراضي</string>
     <string name="player_track_unknown">مسار %1$d</string>
     <string name="aspect_fit">احتواء</string>
-    <string name="aspect_fill">ملء</string>
-    <string name="aspect_stretch">تمديد</string>
+    <string name="aspect_fill">ملء (تمديد)</string>
+    <string name="aspect_stretch">بعرض الشاشة</string>
     <string name="aspect_zoom">تكبير</string>
     <string name="player_locked">الشاشة مقفلة — اضغط على القفل للفتح</string>
     <string name="player_unsupported">تعذّر تشغيل هذا الملف. قد يكون الترميز غير مدعوم من الجهاز.</string>

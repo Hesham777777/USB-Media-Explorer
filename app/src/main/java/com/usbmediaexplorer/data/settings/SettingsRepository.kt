@@ -2,12 +2,14 @@ package com.usbmediaexplorer.data.settings
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.set
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -145,7 +147,7 @@ class SettingsRepository(private val context: Context) {
         keepScreenOn = this[Keys.KEEP_SCREEN_ON] ?: true,
     )
 
-    private fun Preferences.write(settings: AppSettings) {
+    private fun MutablePreferences.write(settings: AppSettings) {
         this[Keys.VIDEO_THUMBS] = settings.videoThumbnailsEnabled
         this[Keys.IMAGE_THUMBS] = settings.imageThumbnailsEnabled
         this[Keys.FOLDER_PREVIEWS] = settings.folderPreviewsEnabled

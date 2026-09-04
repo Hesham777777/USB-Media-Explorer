@@ -27,13 +27,13 @@ data class FavoriteEntry(
 
     companion object {
         fun fromJson(obj: JSONObject): FavoriteEntry = FavoriteEntry(
-            key = obj.string("key"),
-            uri = obj.string("uri"),
-            name = obj.string("name"),
+            key = obj.optString("key", ""),
+            uri = obj.optString("uri", ""),
+            name = obj.optString("name", ""),
             isDirectory = obj.optBoolean("isDirectory", false),
-            volumeId = obj.string("volumeId"),
-            displayPath = obj.string("displayPath"),
-            addedAt = obj.long("addedAt"),
+            volumeId = obj.optString("volumeId", ""),
+            displayPath = obj.optString("displayPath", ""),
+            addedAt = obj.optLong("addedAt", 0L),
         )
     }
 }

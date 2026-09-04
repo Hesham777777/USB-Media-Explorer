@@ -104,14 +104,16 @@ class VolumeMonitor(private val context: Context) {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             runCatching {
-                val callback = StorageManager.StorageVolumeCallback { volume ->
-                    val label = runCatching { volume?.getDescription(context) }.getOrNull()
-                    val mounted = runCatching {
-                        volume?.state == android.os.Environment.MEDIA_MOUNTED
-                    }.getOrDefault(false)
-                    VolumeEventBus.publish(
-                        if (mounted) VolumeEvent.Attached(label) else VolumeEvent.Detached(label),
-                    )
+                val callback = object : StorageManager.StorageVolumeCallback() {
+                    override fun onStateChanged(volume: StorageVolume) {
+                        val label = runCatching { volume.getDescription(context) }.getOrNull()
+                        val mounted = runCatching {
+                            volume.state == android.os.Environment.MEDIA_MOUNTED
+                        }.getOrDefault(false)
+                        VolumeEventBus.publish(
+                            if (mounted) VolumeEvent.Attached(label) else VolumeEvent.Detached(label),
+                        )
+                    }
                 }
                 storageManager?.registerStorageVolumeCallback(context.mainExecutor, callback)
                 volumeCallback = callback

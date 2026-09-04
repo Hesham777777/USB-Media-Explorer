@@ -80,6 +80,9 @@ class PlayerViewModel(
     private val context: Context = container.appContext
     private val docRepository: DocRepository = container.docRepository
 
+    /** Subtitle configurations applied per playlist index (Media3 does not hand them back). */
+    private val subtitleConfigs = HashMap<Int, MutableList<MediaItem.SubtitleConfiguration>>()
+
     private val _state = MutableStateFlow(PlayerUiState())
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
 
@@ -178,12 +181,14 @@ class PlayerViewModel(
             loading = false,
         )
 
+        val initialSubs = subtitleNodes.map { sub -> subtitleConfig(sub) }
+        subtitleConfigs[startIndex] = initialSubs.toMutableList()
         val mediaItems = playlist.map { item ->
             MediaItem.Builder()
                 .setUri(item.uri)
                 .setMediaId(item.uri.toString())
                 .setSubtitleConfigurations(
-                    if (item.key == node.key) subtitleNodes.map { sub -> subtitleConfig(sub) } else emptyList(),
+                    if (item.key == node.key) initialSubs else emptyList(),
                 )
                 .build()
         }
@@ -408,17 +413,20 @@ class PlayerViewModel(
 
     /** Adds a user-picked subtitle file to the currently playing item (spec §11). */
     fun addExternalSubtitle(uri: Uri) {
-        val current = player.currentMediaItem ?: return
+        val index = player.currentMediaItemIndex
+        val current = runCatching { player.getMediaItemAt(index) }.getOrNull() ?: return
         val mime = MediaKind.subtitleMime(uri.toString().substringAfterLast('.', "srt"))
             ?: "application/x-subrip"
         val config = MediaItem.SubtitleConfiguration.Builder(uri)
             .setMimeType(mime)
             .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
             .build()
+        val configs = subtitleConfigs.getOrPut(index) { mutableListOf() }
+        configs += config
         val updated = current.buildUpon()
-            .setSubtitleConfigurations(current.subtitleConfigurations + config)
+            .setSubtitleConfigurations(configs)
             .build()
-        player.replaceMediaItem(player.currentMediaItemIndex, updated)
+        player.replaceMediaItem(index, updated)
         viewModelScope.launch {
             delay(400)
             publishTrackOptions()

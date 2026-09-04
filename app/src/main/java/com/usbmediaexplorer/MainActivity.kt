@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
  * has to work on the old USB-capable phones this app targets.
  *
  * Also the entry point for the two intents that matter for a USB explorer:
- *  - `ACTION_VIEW` on `video/*`, so the built-in player can be used from any other app,
+ *  - ACTION_VIEW on a video URI, so the built-in player can be offered by any other app,
  *  - `USB_DEVICE_ATTACHED`, so plugging a stick in can drop the user straight onto the drive.
  */
 class MainActivity : AppCompatActivity() {

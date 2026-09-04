@@ -180,8 +180,8 @@
     <string name="player_track_default">Default</string>
     <string name="player_track_unknown">Track %1$d</string>
     <string name="aspect_fit">Fit</string>
-    <string name="aspect_fill">Fill</string>
-    <string name="aspect_stretch">Stretch</string>
+    <string name="aspect_fill">Fill (stretch)</string>
+    <string name="aspect_stretch">Fit width</string>
     <string name="aspect_zoom">Zoom</string>
     <string name="player_locked">Screen locked — tap the lock to unlock</string>
     <string name="player_unsupported">This file could not be played. The codec may be unsupported by the device.</string>

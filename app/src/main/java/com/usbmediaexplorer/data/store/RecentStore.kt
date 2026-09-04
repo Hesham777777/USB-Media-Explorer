@@ -31,15 +31,15 @@ data class RecentEntry(
 
     companion object {
         fun fromJson(obj: JSONObject): RecentEntry = RecentEntry(
-            key = obj.string("key"),
-            uri = obj.string("uri"),
-            name = obj.string("name"),
+            key = obj.optString("key", ""),
+            uri = obj.optString("uri", ""),
+            name = obj.optString("name", ""),
             isDirectory = obj.optBoolean("isDirectory", false),
-            volumeId = obj.string("volumeId"),
-            displayPath = obj.string("displayPath"),
-            size = obj.long("size"),
-            lastOpenedAt = obj.long("lastOpenedAt"),
-            kindName = obj.string("kind"),
+            volumeId = obj.optString("volumeId", ""),
+            displayPath = obj.optString("displayPath", ""),
+            size = obj.optLong("size", 0L),
+            lastOpenedAt = obj.optLong("lastOpenedAt", 0L),
+            kindName = obj.optString("kind", ""),
         )
     }
 }

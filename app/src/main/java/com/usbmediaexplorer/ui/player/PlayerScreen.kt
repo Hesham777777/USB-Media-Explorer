@@ -384,7 +384,9 @@ private fun aspectLabel(mode: AspectMode): String = stringResource(
 private fun resizeModeFor(mode: AspectMode): Int = when (mode) {
     AspectMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
     AspectMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-    AspectMode.STRETCH -> AspectRatioFrameLayout.RESIZE_MODE_STRETCH
+    // Media3 calls "ignore the aspect ratio and fill the view" FILL, so STRETCH keeps the ratio
+    // and pins the width instead (the picture overflows vertically and is cropped).
+    AspectMode.STRETCH -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
     AspectMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
 }
 

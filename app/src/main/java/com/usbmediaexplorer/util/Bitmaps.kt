@@ -155,9 +155,9 @@ object Bitmaps {
 
         // Brightness term peaks around mid-grey.
         val brightnessScore = when {
-            mean < 8 -> mean / 8f * 0.15f
-            mean > 245 -> ((255 - mean) / 10f).coerceAtLeast(0f) * 0.15f
-            else -> 0.55f + (1f - kotlin.math.abs(mean - 128f) / 128f) * 0.25f
+            mean < 8.0 -> (mean / 8.0 * 0.15).toFloat()
+            mean > 245.0 -> (((255.0 - mean) / 10.0).coerceAtLeast(0.0) * 0.15).toFloat()
+            else -> (0.55 + (1.0 - kotlin.math.abs(mean - 128.0) / 128.0) * 0.25).toFloat()
         }
         val detailScore = (std / 74.0).coerceIn(0.0, 1.0).toFloat()
         val colourScore = (colourfulness / 40.0).coerceIn(0.0, 1.0).toFloat()

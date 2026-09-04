@@ -229,7 +229,7 @@ fun BulkRenameDialog(
                             modifier = Modifier.weight(1f),
                         )
                     }
-                    Row(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         TextButton(onClick = { position = 0 }) {
                             Text(
                                 text = stringResource(R.string.bulk_prefix),

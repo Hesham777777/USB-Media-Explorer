@@ -1,19 +1,18 @@
 package com.usbmediaexplorer.data.thumb
 
+import android.app.ActivityManager
 import android.content.Context
 import coil.ImageLoader
 import coil.decode.DataSource
-import coil.decode.FetchResult
-import coil.decode.Fetcher
 import coil.decode.ImageDecoderDecoder
-import coil.decode.SourceResult
-import coil.decode.VideoFrameDecoder
+import coil.fetch.FetchResult
+import coil.fetch.Fetcher
+import coil.fetch.SourceResult
 import coil.key.Keyer
 import coil.memory.MemoryCache
 import coil.request.Options
 import com.usbmediaexplorer.util.AppDispatchers
 import okio.Buffer
-import java.util.concurrent.Executors
 
 /**
  * Bridges the thumbnail pipeline into Coil.
@@ -30,29 +29,28 @@ object CoilSetup {
             .components {
                 add(ThumbKeyer())
                 add(ThumbFetcherFactory(repository))
-                // Plain Uri models (image viewer) keep the standard decoders, including
-                // animated GIF/WebP and video frames.
+                // Animated GIF/WebP for plain Uri models (the image viewer).
                 add(ImageDecoderDecoder.Factory(enforceMinimumFrameDelay = true))
-                add(VideoFrameDecoder.Factory())
             }
             .memoryCache {
                 MemoryCache.Builder(context)
                     .maxSizePercent(if (isLowRam(context)) 0.10 else 0.20)
                     .build()
             }
+            // Our ThumbnailCache owns the disk; a second cache would double every byte written.
             .diskCache(null)
             .crossfade(false)
             .respectCacheHeaders(false)
             .allowRgb565(true)
-            .fetcherDispatcher(Executors.newFixedThreadPool(FETCH_THREADS))
-            .decoderDispatcher(AppDispatchers.default.asExecutor())
+            // Frame extraction is I/O bound on the drive itself — keep the parallelism small so a
+            // slow USB stick is never hammered by a dozen concurrent readers.
+            .fetcherDispatcher(AppDispatchers.thumbnail)
+            .decoderDispatcher(AppDispatchers.default)
             .build()
 
     private fun isLowRam(context: Context): Boolean =
-        (context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager)
+        (context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager)
             ?.isLowRamDevice == true
-
-    private const val FETCH_THREADS = 3
 }
 
 /** Cache key: identical requests share memory/disk entries. */
@@ -60,6 +58,7 @@ class ThumbKeyer : Keyer<ThumbRequest> {
     override fun key(data: ThumbRequest, options: Options): String = data.cacheKey
 }
 
+/** Turns a [ThumbRequest] into encoded image bytes produced by our own extractors. */
 class ThumbFetcher(
     private val repository: ThumbnailRepository,
     private val request: ThumbRequest,
@@ -76,12 +75,9 @@ class ThumbFetcher(
     }
 }
 
-class ThumbFetcherFactory(private val repository: ThumbnailRepository) : Fetcher.Factory<ThumbRequest> {
+class ThumbFetcherFactory(private val repository: ThumbnailRepository) :
+    Fetcher.Factory<ThumbRequest> {
+
     override fun create(data: ThumbRequest, options: Options, imageLoader: ImageLoader): Fetcher =
         ThumbFetcher(repository, data)
 }
-
-private fun kotlinx.coroutines.CoroutineDispatcher.asExecutor(): java.util.concurrent.ExecutorService =
-    Executors.newSingleThreadExecutor { runnable ->
-        Thread(runnable, "coil-decoder").apply { priority = Thread.NORM_PRIORITY - 1 }
-    }

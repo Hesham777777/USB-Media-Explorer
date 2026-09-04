@@ -615,7 +615,7 @@ private fun SliderRow(
             value = value,
             onValueChange = onValueChange,
             valueRange = range,
-            steps = ((range.endInclusive - range.startInclusive) / 2f).toInt() - 1,
+            steps = ((range.endInclusive - range.start) / 2f).toInt() - 1,
         )
     }
 }
