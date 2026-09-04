@@ -8,6 +8,7 @@
 > | البنية المعمارية ومكان كل ميزة | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
 > | الكود | `app/src/main/java/com/usbmediaexplorer/` |
 > | اختبارات الوحدات | `app/src/test/java/com/usbmediaexplorer/` |
+> | بناء APK تلقائيًا | [`.github/workflows/build-apk.yml`](.github/workflows/build-apk.yml) — نزّل الـAPK من تبويب **Actions → Artifacts** |
 >
 > النص الأصلي للمواصفات محفوظ كما هو بالأسفل.
 

@@ -1,5 +1,24 @@
 # البناء والتشغيل (Build & Run)
 
+## 0. أسرع طريقة للحصول على ملف APK جاهز — GitHub Actions
+
+لا تحتاج Android Studio ولا أي أدوات محلية:
+
+1. ادفع أي commit إلى الفرع (أو افتح تبويب **Actions** في المستودع).
+2. سير العمل **Build APK** (`.github/workflows/build-apk.yml`) يعمل تلقائيًا على كل push
+   إلى `main` أو `arena/**`، أو يدويًا عبر **Run workflow**.
+3. بعد ~5–10 دقائق، افتح تشغيل السير → قسم **Artifacts** → نزّل
+   `USB-Media-Explorer-debug-apk`.
+4. انقل `USB-Media-Explorer-debug.apk` إلى الهاتف وثبّته مباشرة
+   (نسخة debug موقّعة بمفتاح التطوير، لذلك يلزم تفعيل «تثبيت من مصادر غير معروفة»).
+
+ملاحظات:
+- عند رفع وسم مثل `v1.0.0` يُنشئ السير **Release** مرفقًا به ملف الـAPK.
+- نسخة `release` تُبنى غير موقّعة (`app-release-unsigned.apk`)؛ لتوقيعها أضف المفاتيح
+   كما في القسم 4.
+- `gradle-wrapper.jar` غير مودَع في المستودع (ملف ثنائي)، لذلك يولّده السير بأمر
+  `gradle wrapper --gradle-version 8.9` قبل البناء.
+
 ## 1. المتطلبات
 
 | الأداة | الإصدار |

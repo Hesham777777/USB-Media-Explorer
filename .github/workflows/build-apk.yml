@@ -1,0 +1,101 @@
+name: Build APK
+
+# يبني ملف APK جاهزًا للتثبيت على أي push أو يدويًا من تبويب Actions.
+# نسخة debug موقّعة بمفتاح التطوير، أي أنها تُثبَّت على الهاتف مباشرة.
+on:
+  push:
+    branches: [ main, 'arena/**' ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      run_tests:
+        description: 'تشغيل اختبارات الوحدات أيضًا'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: assembleDebug + artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      # gradle-wrapper.jar ملف ثنائي غير مودَع في المستودع، لذا نولّده هنا.
+      - name: Generate the Gradle wrapper
+        run: gradle wrapper --gradle-version 8.9 --no-daemon
+
+      - name: Show environment
+        run: |
+          java -version
+          ./gradlew --version
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME/platforms" 2>/dev/null || true
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Collect APKs
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/USB-Media-Explorer-debug.apk
+          cp app/build/outputs/apk/debug/output-metadata.json dist/ 2>/dev/null || true
+          ls -la dist
+
+      # الرفع قبل أي خطوة قد تفشل، حتى يبقى ملف APK متاحًا للتنزيل دائمًا.
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: USB-Media-Explorer-debug-apk
+          path: dist/USB-Media-Explorer-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Unit tests
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_tests }}
+        continue-on-error: true
+        run: ./gradlew :app:testDebugUnitTest --no-daemon --continue
+
+      - name: Build release APK (unsigned)
+        continue-on-error: true
+        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
+
+      - name: Upload release APK
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: USB-Media-Explorer-release-unsigned-apk
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Publish GitHub Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/USB-Media-Explorer-debug.apk
+            app/build/outputs/apk/release/*.apk
+          generate_release_notes: true
+          fail_on_unmatched_files: false
