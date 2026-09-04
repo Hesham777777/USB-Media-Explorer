@@ -1,4 +1,18 @@
 # USB-Media-Explorer
+
+> **حالة التنفيذ:** المواصفات التالية مُنفَّذة بالكامل في الكود المصدري (Kotlin + Jetpack Compose + Material 3 + Media3 ExoPlayer + Coil).
+>
+> | | |
+> |---|---|
+> | البناء والتشغيل خطوة بخطوة | [`docs/BUILD.md`](docs/BUILD.md) |
+> | البنية المعمارية ومكان كل ميزة | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+> | الكود | `app/src/main/java/com/usbmediaexplorer/` |
+> | اختبارات الوحدات | `app/src/test/java/com/usbmediaexplorer/` |
+>
+> النص الأصلي للمواصفات محفوظ كما هو بالأسفل.
+
+---
+
 اسم المشروع:
 USB Media Explorer
 

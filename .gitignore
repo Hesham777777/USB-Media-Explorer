@@ -1,0 +1,33 @@
+# Gradle / Android
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# App modules
+app/build/
+app/release/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# Keystores (never commit signing material)
+*.jks
+*.keystore
+
+# Logs / profiling
+*.log
+*.hprof
+captures/
+
+# Editors
+*.swp
+*~

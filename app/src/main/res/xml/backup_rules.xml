@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Thumbnails can always be regenerated from the drive itself -->
+    <exclude
+        domain="file"
+        path="thumbs/" />
+    <exclude
+        domain="database"
+        path="." />
+</full-backup-content>

@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">USB Media Explorer</string>
+
+    <!-- Common actions -->
+    <string name="action_open">Open</string>
+    <string name="action_share">Share</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_cut">Cut</string>
+    <string name="action_paste">Paste</string>
+    <string name="action_move">Move</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_rename">Rename</string>
+    <string name="action_details">Details</string>
+    <string name="action_favorite">Add to favorites</string>
+    <string name="action_unfavorite">Remove from favorites</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_ok">OK</string>
+    <string name="action_apply">Apply</string>
+    <string name="action_close">Close</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_save">Save</string>
+    <string name="action_select_all">Select all</string>
+    <string name="action_invert_selection">Invert selection</string>
+    <string name="action_new_folder">New folder</string>
+    <string name="action_new_file">New file</string>
+    <string name="action_zip">Compress (ZIP)</string>
+    <string name="action_unzip">Extract here</string>
+    <string name="action_bulk_rename">Bulk rename</string>
+    <string name="action_search">Search</string>
+    <string name="action_sort">Sort</string>
+    <string name="action_view_mode">View</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_grant_access">Grant access</string>
+    <string name="action_more">More options</string>
+    <string name="action_back">Back</string>
+    <string name="action_resume">Resume</string>
+    <string name="action_start_over">Start over</string>
+    <string name="action_select_destination">Select destination</string>
+
+    <!-- Home / volumes -->
+    <string name="home_title">Storage</string>
+    <string name="home_subtitle">Pick a drive to browse</string>
+    <string name="section_volumes">Volumes</string>
+    <string name="section_quick_access">Quick access</string>
+    <string name="section_favorites">Favorites</string>
+    <string name="section_recent">Recent</string>
+    <string name="volume_internal">Internal storage</string>
+    <string name="volume_sd_card">SD card</string>
+    <string name="volume_usb">USB drive</string>
+    <string name="volume_unknown">External volume</string>
+    <string name="volume_free_of">%1$s free of %2$s</string>
+    <string name="volume_space_unknown">Size unavailable</string>
+    <string name="volume_unmounted">Not mounted</string>
+    <string name="volume_needs_permission">Access permission required</string>
+    <string name="volume_fs_label">File system: %1$s</string>
+    <string name="empty_no_volumes">No storage found</string>
+    <string name="hint_connect_usb">Connect a USB drive, OTG adapter or SD card and it will appear here automatically.</string>
+    <string name="usb_attached_title">USB drive detected</string>
+    <string name="usb_attached_body">Grant access once to browse the drive and build real video thumbnails.</string>
+    <string name="recent_videos">Recently watched</string>
+    <string name="recent_folders">Recently opened folders</string>
+
+    <!-- Browse -->
+    <string name="browse_loading">Loading…</string>
+    <string name="browse_empty_folder">This folder is empty</string>
+    <string name="breadcrumb_root">Root</string>
+    <string name="items_count">%1$d items</string>
+    <string name="videos_count">%1$d videos</string>
+    <string name="photos_count">%1$d photos</string>
+    <string name="folders_count">%1$d folders</string>
+    <string name="selection_count">%1$d selected</string>
+    <string name="sort_by">Sort by</string>
+    <string name="sort_name_asc">Name (A → Z)</string>
+    <string name="sort_name_desc">Name (Z → A)</string>
+    <string name="sort_newest">Newest first</string>
+    <string name="sort_oldest">Oldest first</string>
+    <string name="sort_largest">Largest first</string>
+    <string name="sort_smallest">Smallest first</string>
+    <string name="sort_type">Type</string>
+    <string name="sort_duration">Duration</string>
+    <string name="sort_folders_first">Folders first</string>
+    <string name="view_mode">View mode</string>
+    <string name="view_list">List</string>
+    <string name="view_grid_small">Small grid</string>
+    <string name="view_grid_medium">Medium grid</string>
+    <string name="view_grid_large">Large grid</string>
+    <string name="view_grid_huge">Huge media grid</string>
+    <string name="resume_badge">%1$s left</string>
+    <string name="thumb_failed">Preview unavailable</string>
+
+    <!-- Sort labels -->
+    <string name="label_name">Name</string>
+    <string name="label_size">Size</string>
+    <string name="label_date">Date</string>
+    <string name="label_type">Type</string>
+    <string name="label_duration">Duration</string>
+    <string name="label_resolution">Resolution</string>
+    <string name="label_codec">Codec</string>
+    <string name="label_fps">Frame rate</string>
+    <string name="label_audio">Audio</string>
+    <string name="label_subtitle">Subtitles</string>
+    <string name="label_path">Path</string>
+    <string name="label_storage">Storage</string>
+    <string name="label_created">Created</string>
+    <string name="label_modified">Modified</string>
+    <string name="label_unknown">Unknown</string>
+
+    <!-- Details -->
+    <string name="details_title">File details</string>
+
+    <!-- Search -->
+    <string name="search_hint">Search files and folders</string>
+    <string name="search_filters">Filters</string>
+    <string name="filter_all">Everything</string>
+    <string name="filter_videos">All videos</string>
+    <string name="filter_movies">Movies</string>
+    <string name="filter_series">Series</string>
+    <string name="filter_photos">Photos</string>
+    <string name="filter_music">Music</string>
+    <string name="filter_large">Large files (1 GB+)</string>
+    <string name="search_no_results">No results</string>
+    <string name="search_running">Searching…</string>
+    <string name="search_scanned">%1$d items scanned</string>
+
+    <!-- File operations -->
+    <string name="ops_title">Transfers</string>
+    <string name="op_copy">Copying</string>
+    <string name="op_move">Moving</string>
+    <string name="op_delete">Deleting</string>
+    <string name="op_rename">Renaming</string>
+    <string name="op_zip">Compressing</string>
+    <string name="op_unzip">Extracting</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_resume_op">Resume</string>
+    <string name="transfer_eta">%1$s left</string>
+    <string name="transfer_speed">%1$s/s</string>
+    <string name="transfer_state_queued">Queued</string>
+    <string name="transfer_state_running">Running</string>
+    <string name="transfer_state_paused">Paused</string>
+    <string name="transfer_state_done">Completed</string>
+    <string name="transfer_state_failed">Failed</string>
+    <string name="transfer_state_canceled">Canceled</string>
+    <string name="ops_channel_name">File transfers</string>
+    <string name="ops_channel_desc">Progress of copy, move, delete and ZIP operations</string>
+    <string name="ops_notification_title">Working on %1$d item(s)</string>
+    <string name="ops_done_notification">Operation finished</string>
+    <string name="ops_no_jobs">No active transfers</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_rename_title">Rename</string>
+    <string name="dialog_new_folder_title">New folder</string>
+    <string name="dialog_new_file_title">New file</string>
+    <string name="dialog_delete_title">Delete %1$d item(s)?</string>
+    <string name="dialog_delete_body">This cannot be undone. Files are removed from the drive itself.</string>
+    <string name="dialog_error_title">Something went wrong</string>
+    <string name="dialog_permission_title">Storage access</string>
+    <string name="dialog_permission_body">Android requires one explicit grant per external volume. Thumbnails are created by reading the video files directly — nothing is copied to your phone.</string>
+    <string name="dialog_resume_title">Continue watching?</string>
+    <string name="dialog_resume_body">You stopped at %1$s (%2$s left).</string>
+    <string name="bulk_find">Find</string>
+    <string name="bulk_replace">Replace with</string>
+    <string name="bulk_prefix">Add prefix</string>
+    <string name="bulk_suffix">Add suffix</string>
+    <string name="bulk_numbering">Automatic numbering</string>
+    <string name="bulk_start_at">Start at</string>
+    <string name="bulk_padding">Digits</string>
+    <string name="bulk_preview">Preview</string>
+    <string name="bulk_result_example">%1$s → %2$s</string>
+
+    <!-- Player -->
+    <string name="player_speed">Speed</string>
+    <string name="player_aspect">Aspect ratio</string>
+    <string name="player_audio_track">Audio track</string>
+    <string name="player_subtitle_track">Subtitle track</string>
+    <string name="player_pick_subtitle_file">Load subtitle file…</string>
+    <string name="player_track_off">Off</string>
+    <string name="player_track_auto">Auto</string>
+    <string name="player_track_default">Default</string>
+    <string name="player_track_unknown">Track %1$d</string>
+    <string name="aspect_fit">Fit</string>
+    <string name="aspect_fill">Fill</string>
+    <string name="aspect_stretch">Stretch</string>
+    <string name="aspect_zoom">Zoom</string>
+    <string name="player_locked">Screen locked — tap the lock to unlock</string>
+    <string name="player_unsupported">This file could not be played. The codec may be unsupported by the device.</string>
+    <string name="player_next">Next</string>
+    <string name="player_previous">Previous</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_thumbnails">Thumbnails</string>
+    <string name="setting_video_thumbs">Video previews</string>
+    <string name="setting_video_thumbs_desc">Extract a real frame from each video file on the drive</string>
+    <string name="setting_image_thumbs">Image previews</string>
+    <string name="setting_image_thumbs_desc">Show the image itself instead of an icon</string>
+    <string name="setting_folder_previews">Folder previews</string>
+    <string name="setting_folder_previews_desc">Compose a 2×2 preview from the media inside a folder</string>
+    <string name="setting_thumb_size">Thumbnail size</string>
+    <string name="setting_thumb_quality">Thumbnail quality</string>
+    <string name="setting_frame_position">Frame used for preview</string>
+    <string name="setting_frame_auto_desc">Samples a few positions and keeps the sharpest, non-black frame</string>
+    <string name="setting_prefer_embedded_cover">Prefer embedded cover art</string>
+    <string name="setting_prefer_embedded_cover_desc">Use the poster stored inside MKV/MP4 when present</string>
+    <string name="setting_charging_only">Generate previews while charging only</string>
+    <string name="setting_cache">Cache</string>
+    <string name="setting_cache_limit">Maximum cache size</string>
+    <string name="setting_cache_used">Cache used</string>
+    <string name="setting_clear_cache">Clear cache</string>
+    <string name="setting_clear_cache_done">Cache cleared</string>
+    <string name="setting_clean_orphans">Remove entries of deleted files</string>
+    <string name="setting_appearance">Appearance</string>
+    <string name="setting_theme">Theme</string>
+    <string name="theme_system">Follow system</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="setting_dynamic_color">Material You colors</string>
+    <string name="setting_language">Language</string>
+    <string name="language_system">System default</string>
+    <string name="language_en">English</string>
+    <string name="language_ar">العربية</string>
+    <string name="setting_player">Playback</string>
+    <string name="setting_resume_prompt">Ask before resuming</string>
+    <string name="setting_subtitle_autodetect">Auto-detect subtitle files</string>
+    <string name="setting_subtitle_autodetect_desc">Match Movie.srt next to Movie.mkv automatically</string>
+    <string name="setting_advanced">Advanced</string>
+    <string name="setting_show_hidden">Show hidden files</string>
+    <string name="setting_lazy_metadata">Load media info lazily</string>
+    <string name="setting_lazy_metadata_desc">Read duration and resolution only for visible items</string>
+    <string name="setting_about">About</string>
+    <string name="setting_about_desc">Fully offline. No accounts, no cloud, no downloaded posters.</string>
+
+    <string name="frame_first">First frame</string>
+    <string name="frame_5">5% of duration</string>
+    <string name="frame_10">10% of duration</string>
+    <string name="frame_25">25% of duration</string>
+    <string name="frame_middle">Middle of the video</string>
+    <string name="frame_auto">Automatic (best frame)</string>
+
+    <string name="thumb_size_small">Small (fast)</string>
+    <string name="thumb_size_medium">Medium</string>
+    <string name="thumb_size_large">Large</string>
+    <string name="thumb_size_xlarge">Extra large (sharp)</string>
+
+    <!-- Errors / feedback -->
+    <string name="error_no_permission">No permission to read this volume</string>
+    <string name="error_device_disconnected">The drive was disconnected</string>
+    <string name="error_operation_failed">Operation failed</string>
+    <string name="error_empty_name">Name cannot be empty</string>
+    <string name="error_name_exists">An item with this name already exists</string>
+    <string name="error_unsupported">Unsupported file</string>
+    <string name="msg_copied_to_clipboard">Path copied</string>
+    <string name="msg_added_to_favorites">Added to favorites</string>
+    <string name="msg_removed_from_favorites">Removed from favorites</string>
+    <string name="msg_items_selected_for_copy">%1$d item(s) ready — open the destination and tap Paste</string>
+    <string name="msg_items_selected_for_move">%1$d item(s) ready to move — open the destination and tap Paste</string>
+    <string name="msg_no_selection">Select a destination folder first</string>
+    <string name="msg_deleted">Deleted</string>
+    <string name="msg_renamed">Renamed</string>
+    <string name="msg_created">Created</string>
+    <string name="msg_shared_failed">No app can open this file</string>
+
+    <!-- Content descriptions -->
+    <string name="cd_thumbnail">Media preview</string>
+    <string name="cd_select">Select</string>
+    <string name="cd_volume_icon">Volume</string>
+    <string name="cd_clear">Clear</string>
+</resources>
