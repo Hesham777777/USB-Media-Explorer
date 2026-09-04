@@ -5,6 +5,7 @@ import android.content.Context
 import coil.ImageLoader
 import coil.decode.DataSource
 import coil.decode.ImageDecoderDecoder
+import coil.decode.ImageSource
 import coil.fetch.FetchResult
 import coil.fetch.Fetcher
 import coil.fetch.SourceResult
@@ -68,7 +69,7 @@ class ThumbFetcher(
         val bytes = repository.thumbnail(request) ?: return null
         val buffer = Buffer().apply { write(bytes) }
         return SourceResult(
-            source = buffer,
+            source = ImageSource(buffer),
             mimeType = "image/webp",
             dataSource = DataSource.DISK,
         )
