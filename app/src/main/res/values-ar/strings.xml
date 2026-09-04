@@ -87,6 +87,7 @@
     <string name="view_grid_medium">شبكة متوسطة</string>
     <string name="view_grid_large">شبكة كبيرة</string>
     <string name="view_grid_huge">شبكة ضخمة للوسائط</string>
+    <string name="view_poster">جدار البوسترات</string>
     <string name="resume_badge">متبقي %1$s</string>
     <string name="thumb_failed">المعاينة غير متوفرة</string>
 
@@ -203,6 +204,10 @@
     <string name="setting_frame_auto_desc">يجرّب عدة مواضع زمنية ويختار أوضح إطار غير أسود</string>
     <string name="setting_prefer_embedded_cover">تفضيل الغلاف المدمج</string>
     <string name="setting_prefer_embedded_cover_desc">استخدام البوستر المخزّن داخل MKV/MP4 عند توفره</string>
+    <string name="setting_folder_style_windows">معاينة المجلدات بشكل ويندوز</string>
+    <string name="setting_folder_style_windows_desc">رسم كل مجلد كشكل مجلد ممتلئ بمعاينات من الوسائط التي بداخله. عند الإيقاف تظهر فسيفساء عادية.</string>
+    <string name="setting_poster_covers">جدار البوسترات: الغلاف المدمج أولاً</string>
+    <string name="setting_poster_covers_desc">في عرض البوسترات استخدم الغلاف المخزّن داخل ملف الفيديو عند توفره، وإلا استُخرج إطار من الملف نفسه</string>
     <string name="setting_charging_only">إنشاء المعاينات أثناء الشحن فقط</string>
     <string name="setting_cache">التخزين المؤقت</string>
     <string name="setting_cache_limit">الحد الأقصى لحجم الكاش</string>

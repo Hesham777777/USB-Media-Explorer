@@ -30,6 +30,8 @@ class SettingsRepository(private val context: Context) {
         val FRAME_STRATEGY = stringPreferencesKey("frame_strategy")
         val PREFER_COVER = booleanPreferencesKey("prefer_embedded_cover")
         val CHARGING_ONLY = booleanPreferencesKey("charging_only")
+        val FOLDER_STYLE = stringPreferencesKey("folder_preview_style")
+        val POSTER_COVERS = booleanPreferencesKey("poster_covers_first")
         val CACHE_LIMIT = longPreferencesKey("cache_limit")
         val CACHE_ENABLED = booleanPreferencesKey("cache_enabled")
         val THEME = stringPreferencesKey("theme")
@@ -50,36 +52,7 @@ class SettingsRepository(private val context: Context) {
 
     val settings: Flow<AppSettings> = context.settingsDataStore.data
         .catch { emit(androidx.datastore.preferences.core.emptyPreferences()) }
-        .map { prefs ->
-            AppSettings(
-                videoThumbnailsEnabled = prefs[Keys.VIDEO_THUMBS] ?: true,
-                imageThumbnailsEnabled = prefs[Keys.IMAGE_THUMBS] ?: true,
-                folderPreviewsEnabled = prefs[Keys.FOLDER_PREVIEWS] ?: true,
-                folderPreviewMaxChildren = prefs[Keys.FOLDER_PREVIEW_COUNT] ?: 4,
-                thumbSize = enumOrDefault(prefs[Keys.THUMB_SIZE], ThumbSize.LARGE),
-                thumbQuality = (prefs[Keys.THUMB_QUALITY] ?: 82).coerceIn(30, 100),
-                frameStrategy = enumOrDefault(prefs[Keys.FRAME_STRATEGY], FrameStrategy.AUTO),
-                preferEmbeddedCover = prefs[Keys.PREFER_COVER] ?: false,
-                generateWhileChargingOnly = prefs[Keys.CHARGING_ONLY] ?: false,
-                cacheLimitBytes = (prefs[Keys.CACHE_LIMIT] ?: (512L * 1024 * 1024))
-                    .coerceIn(32L * 1024 * 1024, 8L * 1024 * 1024 * 1024),
-                cacheEnabled = prefs[Keys.CACHE_ENABLED] ?: true,
-                themeMode = enumOrDefault(prefs[Keys.THEME], ThemeMode.SYSTEM),
-                dynamicColor = prefs[Keys.DYNAMIC_COLOR] ?: true,
-                languageMode = enumOrDefault(prefs[Keys.LANGUAGE], LanguageMode.SYSTEM),
-                defaultViewMode = enumOrDefault(prefs[Keys.VIEW_MODE], ViewMode.GRID_LARGE),
-                defaultSortMode = enumOrDefault(prefs[Keys.SORT_MODE], SortMode.NAME_ASC),
-                foldersFirst = prefs[Keys.FOLDERS_FIRST] ?: true,
-                showHiddenFiles = prefs[Keys.SHOW_HIDDEN] ?: false,
-                lazyMetadata = prefs[Keys.LAZY_METADATA] ?: true,
-                rememberPerFolderView = prefs[Keys.PER_FOLDER_VIEW] ?: true,
-                resumePromptEnabled = prefs[Keys.RESUME_PROMPT] ?: true,
-                autoDetectSubtitles = prefs[Keys.AUTO_SUBTITLES] ?: true,
-                defaultPlaybackSpeed = prefs[Keys.SPEED] ?: 1.0f,
-                defaultAspectMode = enumOrDefault(prefs[Keys.ASPECT], AspectMode.FIT),
-                keepScreenOn = prefs[Keys.KEEP_SCREEN_ON] ?: true,
-            )
-        }
+        .map { prefs -> prefs.toSettings() }
 
     suspend fun update(block: AppSettings.() -> AppSettings) {
         context.settingsDataStore.edit { prefs ->
@@ -114,6 +87,11 @@ class SettingsRepository(private val context: Context) {
     suspend fun setAspectMode(value: AspectMode) = set(Keys.ASPECT, value.name)
     suspend fun setKeepScreenOn(value: Boolean) = set(Keys.KEEP_SCREEN_ON, value)
 
+    suspend fun setFolderPreviewStyle(value: FolderPreviewStyle) =
+        set(Keys.FOLDER_STYLE, value.name)
+
+    suspend fun setPosterCoversFirst(value: Boolean) = set(Keys.POSTER_COVERS, value)
+
     private suspend fun <T> set(key: Preferences.Key<T>, value: T) {
         context.settingsDataStore.edit { it[key] = value }
     }
@@ -124,16 +102,19 @@ class SettingsRepository(private val context: Context) {
         folderPreviewsEnabled = this[Keys.FOLDER_PREVIEWS] ?: true,
         folderPreviewMaxChildren = this[Keys.FOLDER_PREVIEW_COUNT] ?: 4,
         thumbSize = enumOrDefault(this[Keys.THUMB_SIZE], ThumbSize.LARGE),
-        thumbQuality = this[Keys.THUMB_QUALITY] ?: 82,
+        thumbQuality = (this[Keys.THUMB_QUALITY] ?: 82).coerceIn(30, 100),
         frameStrategy = enumOrDefault(this[Keys.FRAME_STRATEGY], FrameStrategy.AUTO),
         preferEmbeddedCover = this[Keys.PREFER_COVER] ?: false,
         generateWhileChargingOnly = this[Keys.CHARGING_ONLY] ?: false,
-        cacheLimitBytes = this[Keys.CACHE_LIMIT] ?: (512L * 1024 * 1024),
+        folderPreviewStyle = enumOrDefault(this[Keys.FOLDER_STYLE], FolderPreviewStyle.WINDOWS),
+        posterCoversFirst = this[Keys.POSTER_COVERS] ?: true,
+        cacheLimitBytes = (this[Keys.CACHE_LIMIT] ?: (512L * 1024 * 1024))
+            .coerceIn(32L * 1024 * 1024, 8L * 1024 * 1024 * 1024),
         cacheEnabled = this[Keys.CACHE_ENABLED] ?: true,
         themeMode = enumOrDefault(this[Keys.THEME], ThemeMode.SYSTEM),
         dynamicColor = this[Keys.DYNAMIC_COLOR] ?: true,
         languageMode = enumOrDefault(this[Keys.LANGUAGE], LanguageMode.SYSTEM),
-        defaultViewMode = enumOrDefault(this[Keys.VIEW_MODE], ViewMode.GRID_LARGE),
+        defaultViewMode = enumOrDefault(this[Keys.VIEW_MODE], ViewMode.POSTER),
         defaultSortMode = enumOrDefault(this[Keys.SORT_MODE], SortMode.NAME_ASC),
         foldersFirst = this[Keys.FOLDERS_FIRST] ?: true,
         showHiddenFiles = this[Keys.SHOW_HIDDEN] ?: false,
@@ -156,6 +137,8 @@ class SettingsRepository(private val context: Context) {
         this[Keys.FRAME_STRATEGY] = settings.frameStrategy.name
         this[Keys.PREFER_COVER] = settings.preferEmbeddedCover
         this[Keys.CHARGING_ONLY] = settings.generateWhileChargingOnly
+        this[Keys.FOLDER_STYLE] = settings.folderPreviewStyle.name
+        this[Keys.POSTER_COVERS] = settings.posterCoversFirst
         this[Keys.CACHE_LIMIT] = settings.cacheLimitBytes
         this[Keys.CACHE_ENABLED] = settings.cacheEnabled
         this[Keys.THEME] = settings.themeMode.name

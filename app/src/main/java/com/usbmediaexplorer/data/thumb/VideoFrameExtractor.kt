@@ -68,6 +68,8 @@ class VideoFrameExtractor(
                 runCatching { retriever.setDataSource(context, node.uri) }
             }
 
+            // Cover art first when asked for (the poster view turns this on by default, see the
+            // "poster covers first" setting) — always artwork carried by the file itself.
             if (request.preferEmbeddedCover) {
                 coverBytes(retriever, request)?.let { return it }
             }
@@ -192,7 +194,7 @@ class VideoFrameExtractor(
 
     private fun finish(bitmap: Bitmap, request: ThumbRequest, rotation: Int): ByteArray? {
         val oriented = if (rotation != 0) Bitmaps.rotate(bitmap, rotation.toFloat()) else bitmap
-        val scaled = Bitmaps.fitInside(oriented, request.widthPx, request.heightPx)
+        val scaled = fit(oriented, request)
         return runCatching { Bitmaps.encode(scaled, request.quality) }.also {
             if (!scaled.isRecycled) scaled.recycle()
         }.getOrNull()
@@ -202,7 +204,7 @@ class VideoFrameExtractor(
         runCatching {
             val picture = retriever.embeddedPicture ?: return@runCatching null
             val bitmap = BitmapFactory.decodeByteArray(picture, 0, picture.size) ?: return@runCatching null
-            val scaled = Bitmaps.fitInside(bitmap, request.widthPx, request.heightPx)
+            val scaled = fit(bitmap, request)
             Bitmaps.encode(scaled, request.quality).also {
                 if (!scaled.isRecycled) scaled.recycle()
             }
@@ -217,12 +219,23 @@ class VideoFrameExtractor(
                 android.util.Size(request.widthPx, request.heightPx),
                 null,
             )
-            val scaled = Bitmaps.fitInside(bitmap, request.widthPx, request.heightPx)
+            val scaled = fit(bitmap, request)
             Bitmaps.encode(scaled, request.quality).also {
                 if (!scaled.isRecycled) scaled.recycle()
             }
         }.getOrNull()
     }
+
+    /**
+     * Poster tiles are cropped to their ratio so a 16:9 frame still fills a 2:3 card; everything
+     * else keeps the whole picture inside the requested box.
+     */
+    private fun fit(bitmap: Bitmap, request: ThumbRequest): Bitmap =
+        if (request.poster) {
+            Bitmaps.centerCrop(bitmap, request.widthPx, request.heightPx)
+        } else {
+            Bitmaps.fitInside(bitmap, request.widthPx, request.heightPx)
+        }
 
     private fun extractEmbeddedCover(node: DocNode, request: ThumbRequest): ByteArray? =
         runCatching {

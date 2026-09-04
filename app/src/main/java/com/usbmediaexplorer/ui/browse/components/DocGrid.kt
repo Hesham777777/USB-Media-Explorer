@@ -40,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -51,6 +52,7 @@ import com.usbmediaexplorer.R
 import com.usbmediaexplorer.data.doc.DocNode
 import com.usbmediaexplorer.data.doc.MediaKind
 import com.usbmediaexplorer.data.metadata.MediaMetadata
+import com.usbmediaexplorer.data.settings.FolderPreviewStyle
 import com.usbmediaexplorer.data.settings.ViewMode
 import com.usbmediaexplorer.ui.browse.DocItem
 import com.usbmediaexplorer.ui.common.LocalSettings
@@ -140,7 +142,20 @@ fun DocCard(
     modifier: Modifier = Modifier,
 ) {
     val node = item.node
+    val settings = LocalSettings.current
     val compact = viewMode == ViewMode.GRID_SMALL
+    // The Windows folder artwork is a shape with transparent margins — fit it, never crop it.
+    val folderFit = node.isDirectory &&
+        settings.folderPreviewStyle == FolderPreviewStyle.WINDOWS
+    // Poster view (spec §7): every video/photo becomes a 2:3 "movie poster" whose artwork is the
+    // file's own cover art or an extracted frame. Folders keep a square tile so the Windows-style
+    // folder preview is never cropped.
+    val posterTile = viewMode == ViewMode.POSTER && !node.isDirectory
+    val mediaAspect = when {
+        viewMode == ViewMode.POSTER && node.isDirectory -> 1f
+        viewMode.aspectRatio > 0f -> viewMode.aspectRatio
+        else -> 1f
+    }
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -163,12 +178,13 @@ fun DocCard(
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .aspectRatio(if (viewMode.aspectRatio > 0f) viewMode.aspectRatio else 1f),
+                    .aspectRatio(mediaAspect),
             ) {
                 MediaThumbnail(
                     node = node,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
+                    contentScale = if (folderFit) ContentScale.Fit else ContentScale.Crop,
+                    poster = posterTile,
                 )
 
                 if (node.kind == MediaKind.VIDEO) {
@@ -219,7 +235,11 @@ fun DocCard(
                     Icon(
                         Icons.Outlined.Favorite,
                         contentDescription = stringResource(R.string.action_favorite),
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = if (posterTile) {
+                            Color.White
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
                         modifier = Modifier
                             .align(Alignment.TopStart)
                             .padding(6.dp)
@@ -236,29 +256,72 @@ fun DocCard(
                             .padding(6.dp),
                     )
                 }
+
+                // Poster tiles carry their title over a bottom scrim, cinema style.
+                if (posterTile) {
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(84.dp)
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(Color.Transparent, Color.Black.copy(alpha = 0.88f)),
+                                ),
+                            ),
+                    )
+                    Column(
+                        Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .padding(start = 10.dp, end = 10.dp, bottom = 10.dp, top = 24.dp),
+                    ) {
+                        Text(
+                            text = node.nameWithoutExtension,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        val subtitle = itemSubtitle(item)
+                        if (subtitle.isNotEmpty()) {
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = subtitle,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.72f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
             }
 
-            Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
-                Text(
-                    text = if (node.isDirectory) node.name else node.nameWithoutExtension,
-                    style = if (compact) {
-                        MaterialTheme.typography.labelMedium
-                    } else {
-                        MaterialTheme.typography.titleSmall
-                    },
-                    fontWeight = FontWeight.Medium,
-                    maxLines = if (compact) 1 else 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (!compact) {
-                    Spacer(Modifier.height(2.dp))
+            if (!posterTile) {
+                Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
                     Text(
-                        text = itemSubtitle(item),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
+                        text = if (node.isDirectory) node.name else node.nameWithoutExtension,
+                        style = if (compact) {
+                            MaterialTheme.typography.labelMedium
+                        } else {
+                            MaterialTheme.typography.titleSmall
+                        },
+                        fontWeight = FontWeight.Medium,
+                        maxLines = if (compact) 1 else 2,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    if (!compact) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = itemSubtitle(item),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
         }

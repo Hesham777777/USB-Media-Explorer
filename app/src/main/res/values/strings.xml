@@ -87,6 +87,7 @@
     <string name="view_grid_medium">Medium grid</string>
     <string name="view_grid_large">Large grid</string>
     <string name="view_grid_huge">Huge media grid</string>
+    <string name="view_poster">Poster wall</string>
     <string name="resume_badge">%1$s left</string>
     <string name="thumb_failed">Preview unavailable</string>
 
@@ -203,6 +204,10 @@
     <string name="setting_frame_auto_desc">Samples a few positions and keeps the sharpest, non-black frame</string>
     <string name="setting_prefer_embedded_cover">Prefer embedded cover art</string>
     <string name="setting_prefer_embedded_cover_desc">Use the poster stored inside MKV/MP4 when present</string>
+    <string name="setting_folder_style_windows">Windows-style folder previews</string>
+    <string name="setting_folder_style_windows_desc">Draw every folder as a folder shape filled with previews of the media inside it. Off shows a plain mosaic.</string>
+    <string name="setting_poster_covers">Poster wall: cover art first</string>
+    <string name="setting_poster_covers_desc">In the poster view use the cover stored inside the video file when it has one, otherwise extract a frame from it</string>
     <string name="setting_charging_only">Generate previews while charging only</string>
     <string name="setting_cache">Cache</string>
     <string name="setting_cache_limit">Maximum cache size</string>

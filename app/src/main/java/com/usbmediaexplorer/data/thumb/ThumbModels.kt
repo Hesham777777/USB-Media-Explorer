@@ -1,6 +1,7 @@
 package com.usbmediaexplorer.data.thumb
 
 import com.usbmediaexplorer.data.doc.DocNode
+import com.usbmediaexplorer.data.settings.FolderPreviewStyle
 import com.usbmediaexplorer.data.settings.FrameStrategy
 import com.usbmediaexplorer.util.Hashing
 
@@ -17,6 +18,14 @@ data class ThumbRequest(
     val folderPreview: Boolean = false,
     val folderPreviewCount: Int = 4,
     val preferEmbeddedCover: Boolean = false,
+    /**
+     * Poster presentation (spec §3 + §7): portrait artwork for the poster wall. Embedded cover
+     * art stored inside the file is tried first, and the frame is cropped to the poster ratio
+     * instead of being letterboxed. Still 100% offline — never a downloaded poster.
+     */
+    val poster: Boolean = false,
+    /** Which folder artwork to compose: 2×2 mosaic or a Windows-style folder. */
+    val folderStyle: FolderPreviewStyle = FolderPreviewStyle.MONTAGE,
 ) {
     val cacheKey: String = Hashing.md5Hex(
         buildString {
@@ -28,6 +37,8 @@ data class ThumbRequest(
             append('|').append(strategy.name)
             append('|').append(if (folderPreview) "fp$folderPreviewCount" else "no")
             append('|').append(if (preferEmbeddedCover) "cover" else "frame")
+            append('|').append(if (poster) "poster" else "std")
+            append('|').append(folderStyle.name)
             append('|').append(ENGINE_VERSION)
         },
     )
@@ -37,7 +48,7 @@ data class ThumbRequest(
 
     companion object {
         /** Bumped whenever the extraction pipeline changes, invalidating old cache entries. */
-        const val ENGINE_VERSION = 3
+        const val ENGINE_VERSION = 4
     }
 }
 

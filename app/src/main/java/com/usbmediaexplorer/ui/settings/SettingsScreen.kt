@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.usbmediaexplorer.R
 import com.usbmediaexplorer.data.settings.AppSettings
+import com.usbmediaexplorer.data.settings.FolderPreviewStyle
 import com.usbmediaexplorer.data.settings.AspectMode
 import com.usbmediaexplorer.data.settings.FrameStrategy
 import com.usbmediaexplorer.data.settings.LanguageMode
@@ -127,6 +128,18 @@ fun SettingsScreen(snackbarHostState: SnackbarHostState) {
                     checked = settings.folderPreviewsEnabled,
                     onChange = { scope.launch { container.settingsRepository.setFolderPreviews(it) } },
                 )
+                SwitchRow(
+                    title = stringResource(R.string.setting_folder_style_windows),
+                    subtitle = stringResource(R.string.setting_folder_style_windows_desc),
+                    checked = settings.folderPreviewStyle == FolderPreviewStyle.WINDOWS,
+                    onChange = { on ->
+                        scope.launch {
+                            container.settingsRepository.setFolderPreviewStyle(
+                                if (on) FolderPreviewStyle.WINDOWS else FolderPreviewStyle.MONTAGE,
+                            )
+                        }
+                    },
+                )
                 ClickRow(
                     title = stringResource(R.string.setting_frame_position),
                     value = stringResource(frameStrategyLabel(settings.frameStrategy)),
@@ -151,6 +164,12 @@ fun SettingsScreen(snackbarHostState: SnackbarHostState) {
                     subtitle = stringResource(R.string.setting_prefer_embedded_cover_desc),
                     checked = settings.preferEmbeddedCover,
                     onChange = { scope.launch { container.settingsRepository.setPreferEmbeddedCover(it) } },
+                )
+                SwitchRow(
+                    title = stringResource(R.string.setting_poster_covers),
+                    subtitle = stringResource(R.string.setting_poster_covers_desc),
+                    checked = settings.posterCoversFirst,
+                    onChange = { scope.launch { container.settingsRepository.setPosterCoversFirst(it) } },
                 )
                 SwitchRow(
                     title = stringResource(R.string.setting_charging_only),
@@ -457,6 +476,7 @@ private fun viewModeLabel(mode: ViewMode): Int = when (mode) {
     ViewMode.GRID_MEDIUM -> R.string.view_grid_medium
     ViewMode.GRID_LARGE -> R.string.view_grid_large
     ViewMode.GRID_HUGE -> R.string.view_grid_huge
+    ViewMode.POSTER -> R.string.view_poster
 }
 
 private fun sortLabel(mode: SortMode): Int = when (mode) {

@@ -8,7 +8,10 @@
 > | البنية المعمارية ومكان كل ميزة | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
 > | الكود | `app/src/main/java/com/usbmediaexplorer/` |
 > | اختبارات الوحدات | `app/src/test/java/com/usbmediaexplorer/` |
-> | بناء APK تلقائيًا | [`.github/workflows/build-apk.yml`](.github/workflows/build-apk.yml) — نزّل الـAPK من تبويب **Actions → Artifacts** |
+> | **تحميل APK جاهز** | [إصدار `apk-latest`](https://github.com/Hesham777777/USB-Media-Explorer/releases/tag/apk-latest) — يُحدَّث تلقائيًا مع كل بناء ناجح |
+> | بناء APK تلقائيًا | [`.github/workflows/build-apk.yml`](.github/workflows/build-apk.yml) |
+> | **جدار البوسترات** | وضع العرض `POSTER`: كل فيديو بوستر بنسبة 2:3 — الغلاف المدمج في الملف أولًا وإلا إطار مُستخرج منه، مع الاسم على تظليل أسفل البوستر |
+> | **مجلدات بأسلوب ويندوز** | `FolderPreviewStyle.WINDOWS`: شكل مجلد حقيقي (لسان + جيب + شفة أمامية) ممتلئ بمعاينات من وسائط المجلد نفسه |
 >
 > النص الأصلي للمواصفات محفوظ كما هو بالأسفل.
 

@@ -27,7 +27,11 @@ import com.usbmediaexplorer.ui.theme.Palette
  * this kind", in which case the UI draws the typed icon instead.
  */
 @Composable
-fun rememberThumbRequest(node: DocNode, settings: com.usbmediaexplorer.data.settings.AppSettings): ThumbRequest? {
+fun rememberThumbRequest(
+    node: DocNode,
+    settings: com.usbmediaexplorer.data.settings.AppSettings,
+    poster: Boolean = false,
+): ThumbRequest? {
     val enabled = when (node.kind) {
         MediaKind.VIDEO -> settings.videoThumbnailsEnabled
         MediaKind.IMAGE -> settings.imageThumbnailsEnabled
@@ -36,8 +40,13 @@ fun rememberThumbRequest(node: DocNode, settings: com.usbmediaexplorer.data.sett
     }
     if (!enabled) return null
     val px = settings.thumbSize.px
-    return remember(node.key, settings.thumbSize, settings.thumbQuality, settings.frameStrategy,
-        settings.folderPreviewsEnabled, settings.folderPreviewMaxChildren, settings.preferEmbeddedCover) {
+    val posterTile = poster && node.kind == MediaKind.VIDEO
+    return remember(
+        node.key, settings.thumbSize, settings.thumbQuality, settings.frameStrategy,
+        settings.folderPreviewsEnabled, settings.folderPreviewMaxChildren,
+        settings.preferEmbeddedCover, settings.folderPreviewStyle, settings.posterCoversFirst,
+        posterTile,
+    ) {
         ThumbRequest(
             node = node,
             widthPx = px,
@@ -46,7 +55,10 @@ fun rememberThumbRequest(node: DocNode, settings: com.usbmediaexplorer.data.sett
             strategy = settings.frameStrategy,
             folderPreview = node.isDirectory,
             folderPreviewCount = settings.folderPreviewMaxChildren,
-            preferEmbeddedCover = settings.preferEmbeddedCover,
+            preferEmbeddedCover = settings.preferEmbeddedCover ||
+                (posterTile && settings.posterCoversFirst),
+            poster = posterTile,
+            folderStyle = settings.folderPreviewStyle,
         )
     }
 }
@@ -61,9 +73,10 @@ fun MediaThumbnail(
     node: DocNode,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
+    poster: Boolean = false,
 ) {
     val settings = LocalSettings.current
-    val request = rememberThumbRequest(node, settings)
+    val request = rememberThumbRequest(node, settings, poster)
     val painter = rememberAsyncImagePainter(
         model = request,
         contentScale = contentScale,

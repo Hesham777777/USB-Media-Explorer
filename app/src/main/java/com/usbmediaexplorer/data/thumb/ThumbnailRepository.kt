@@ -9,6 +9,7 @@ import com.usbmediaexplorer.data.doc.DocRepository
 import com.usbmediaexplorer.data.doc.MediaKind
 import com.usbmediaexplorer.data.metadata.MetadataRepository
 import com.usbmediaexplorer.data.settings.AppSettings
+import com.usbmediaexplorer.data.settings.FolderPreviewStyle
 import com.usbmediaexplorer.data.settings.SettingsRepository
 import com.usbmediaexplorer.util.Bitmaps
 import com.usbmediaexplorer.util.Power
@@ -58,7 +59,12 @@ class ThumbnailRepository(
         if (settings == AppSettings.DEFAULT) settingsRepository.settings.first() else settings
 
     /** Builds the request a card should use for the current settings. */
-    suspend fun requestFor(node: DocNode, widthPx: Int, heightPx: Int): ThumbRequest {
+    suspend fun requestFor(
+        node: DocNode,
+        widthPx: Int,
+        heightPx: Int,
+        poster: Boolean = false,
+    ): ThumbRequest {
         val s = currentSettings()
         return ThumbRequest(
             node = node,
@@ -68,7 +74,9 @@ class ThumbnailRepository(
             strategy = s.frameStrategy,
             folderPreview = s.folderPreviewsEnabled && node.isDirectory,
             folderPreviewCount = s.folderPreviewMaxChildren,
-            preferEmbeddedCover = s.preferEmbeddedCover,
+            preferEmbeddedCover = s.preferEmbeddedCover || (poster && s.posterCoversFirst),
+            poster = poster,
+            folderStyle = s.folderPreviewStyle,
         )
     }
 
@@ -119,12 +127,16 @@ class ThumbnailRepository(
     }
 
     /**
-     * Folder preview (spec §7): a 2×2 mosaic built from the folder's own media, cached like any
-     * other thumbnail and switchable from settings.
+     * Folder preview (spec §7): composed from the folder's *own* media — either a 2×2 mosaic or a
+     * Windows-style folder whose pocket is filled with those previews. Cached like any other
+     * thumbnail and switchable from settings.
      */
     private suspend fun composeFolderPreview(request: ThumbRequest): ByteArray? {
+        val windows = request.folderStyle == FolderPreviewStyle.WINDOWS
         val children = docRepository.mediaChildren(request.node, request.folderPreviewCount)
-        if (children.isEmpty()) return null
+        // A folder with nothing previewable inside still gets the folder shape in Windows style,
+        // so the grid looks consistent instead of mixing folders and icons.
+        if (children.isEmpty()) return if (windows) emptyWindowsFolder(request) else null
         val cell = (request.widthPx / 2).coerceAtLeast(64)
         val parts = children.take(request.folderPreviewCount).map { child ->
             coroutineContext.ensureActive()
@@ -133,19 +145,38 @@ class ThumbnailRepository(
                 widthPx = cell * 2,
                 heightPx = cell * 2,
                 folderPreview = false,
+                poster = false,
             )
             bitmap(sub)
         }
-        if (parts.all { it == null }) return null
-        val grid = Bitmaps.composeGrid(
-            parts = parts,
-            width = request.widthPx,
-            height = request.heightPx,
-            background = 0xFF101418.toInt(),
-        )
+        if (parts.all { it == null }) {
+            return if (windows) emptyWindowsFolder(request) else null
+        }
+        val grid = if (windows) {
+            Bitmaps.composeFolderWindows(
+                parts = parts,
+                width = request.widthPx,
+                height = request.heightPx,
+            )
+        } else {
+            Bitmaps.composeGrid(
+                parts = parts,
+                width = request.widthPx,
+                height = request.heightPx,
+                background = 0xFF101418.toInt(),
+            )
+        }
         return runCatching { Bitmaps.encode(grid, request.quality) }.also {
             parts.forEach { bmp -> bmp?.takeIf { !bmp.isRecycled }?.recycle() }
             if (!grid.isRecycled) grid.recycle()
+        }.getOrNull()
+    }
+
+    /** Windows-style folder artwork with an empty pocket. */
+    private fun emptyWindowsFolder(request: ThumbRequest): ByteArray? {
+        val folder = Bitmaps.composeFolderWindows(emptyList(), request.widthPx, request.heightPx)
+        return runCatching { Bitmaps.encode(folder, request.quality) }.also {
+            if (!folder.isRecycled) folder.recycle()
         }.getOrNull()
     }
 
