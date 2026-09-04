@@ -16,6 +16,7 @@ import com.usbmediaexplorer.data.store.FolderPrefsStore
 import com.usbmediaexplorer.data.store.PlaybackPositionStore
 import com.usbmediaexplorer.data.store.RecentStore
 import com.usbmediaexplorer.data.thumb.CoilSetup
+import com.usbmediaexplorer.data.thumb.FolderCoverExtractor
 import com.usbmediaexplorer.data.thumb.ImageThumbExtractor
 import com.usbmediaexplorer.data.thumb.ThumbnailCache
 import com.usbmediaexplorer.data.thumb.ThumbnailRepository
@@ -73,6 +74,10 @@ class AppContainer(private val context: Context) {
     val imageThumbExtractor: ImageThumbExtractor by lazy {
         ImageThumbExtractor(context, docRepository)
     }
+    /** Folder Cover: which image inside a folder represents that folder (poster priority). */
+    val folderCoverExtractor: FolderCoverExtractor by lazy {
+        FolderCoverExtractor(docRepository, imageThumbExtractor)
+    }
     val thumbnailRepository: ThumbnailRepository by lazy {
         ThumbnailRepository(
             context = context,
@@ -80,6 +85,7 @@ class AppContainer(private val context: Context) {
             cache = thumbnailCache,
             videoExtractor = videoFrameExtractor,
             imageExtractor = imageThumbExtractor,
+            folderCoverExtractor = folderCoverExtractor,
             metadataRepository = metadataRepository,
             settingsRepository = settingsRepository,
             scope = appScope,

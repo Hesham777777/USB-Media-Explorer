@@ -9,9 +9,7 @@ import com.usbmediaexplorer.data.doc.DocRepository
 import com.usbmediaexplorer.data.doc.MediaKind
 import com.usbmediaexplorer.data.metadata.MetadataRepository
 import com.usbmediaexplorer.data.settings.AppSettings
-import com.usbmediaexplorer.data.settings.FolderPreviewStyle
 import com.usbmediaexplorer.data.settings.SettingsRepository
-import com.usbmediaexplorer.util.Bitmaps
 import com.usbmediaexplorer.util.Power
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ensureActive
@@ -25,8 +23,13 @@ import kotlin.coroutines.coroutineContext
 /**
  * The thumbnail pipeline (spec §3, §5, §7, §22, §26).
  *
+ * Three independent generators, one cache:
+ *  - [VideoFrameExtractor] → a real frame from inside the video,
+ *  - [ImageThumbExtractor] → the picture itself,
+ *  - [FolderCoverExtractor] → the poster image found inside a folder (Folder Cover).
+ *
  *  - memory/index-first: a repeated visit to a folder never re-decodes a video,
- *  - key = `uri|size|lastModified|geometry|quality|strategy`, so editing a file on the stick
+ *  - key = `uri|size|lastModified|geometry|quality|strategy|mode`, so editing a file on the stick
  *    invalidates exactly that entry and nothing else,
  *  - generation is serialised per key and bounded globally, so 5 000 videos never freeze the UI,
  *  - the source file is opened read-only and never written to.
@@ -37,6 +40,7 @@ class ThumbnailRepository(
     private val cache: ThumbnailCache,
     private val videoExtractor: VideoFrameExtractor,
     private val imageExtractor: ImageThumbExtractor,
+    private val folderCoverExtractor: FolderCoverExtractor,
     private val metadataRepository: MetadataRepository,
     private val settingsRepository: SettingsRepository,
     private val scope: CoroutineScope,
@@ -59,12 +63,7 @@ class ThumbnailRepository(
         if (settings == AppSettings.DEFAULT) settingsRepository.settings.first() else settings
 
     /** Builds the request a card should use for the current settings. */
-    suspend fun requestFor(
-        node: DocNode,
-        widthPx: Int,
-        heightPx: Int,
-        poster: Boolean = false,
-    ): ThumbRequest {
+    suspend fun requestFor(node: DocNode, widthPx: Int, heightPx: Int): ThumbRequest {
         val s = currentSettings()
         return ThumbRequest(
             node = node,
@@ -72,11 +71,9 @@ class ThumbnailRepository(
             heightPx = heightPx,
             quality = s.thumbQuality,
             strategy = s.frameStrategy,
-            folderPreview = s.folderPreviewsEnabled && node.isDirectory,
-            folderPreviewCount = s.folderPreviewMaxChildren,
-            preferEmbeddedCover = s.preferEmbeddedCover || (poster && s.posterCoversFirst),
-            poster = poster,
-            folderStyle = s.folderPreviewStyle,
+            folderCover = s.folderCoversEnabled && node.isDirectory,
+            coverScanLimit = s.folderCoverScanLimit,
+            preferEmbeddedCover = s.preferEmbeddedCover,
         )
     }
 
@@ -90,20 +87,53 @@ class ThumbnailRepository(
         if (!isPreviewAllowed(kind, s)) return null
         if (s.generateWhileChargingOnly && !Power.isCharging(context)) return null
 
-        cache.fileFor(request.cacheKey)?.let { file ->
-            runCatching { file.readBytes() }.getOrNull()?.let { return it }
+        when (val hit = readCache(request.cacheKey)) {
+            is CacheHit.Bytes -> return hit.bytes
+            CacheHit.NoCover -> return null
+            null -> Unit
         }
 
         val lock = lockFor(request.cacheKey)
         return lock.withLock {
             // Another coroutine may have generated it while we waited for the lock.
-            cache.fileFor(request.cacheKey)?.let { file ->
-                runCatching { file.readBytes() }.getOrNull()
-            } ?: generate(request, kind)?.also { bytes ->
+            when (val hit = readCache(request.cacheKey)) {
+                is CacheHit.Bytes -> return@withLock hit.bytes
+                CacheHit.NoCover -> return@withLock null
+                null -> Unit
+            }
+
+            val bytes = generate(request, kind)
+            if (bytes != null) {
                 cache.put(request.cacheKey, request.nodeKey, bytes)
                 cache.schedulePersist()
                 maybePrune(s.cacheLimitBytes)
+                return@withLock bytes
             }
+            if (request.folderCover) {
+                // Negative cache. A folder with no image inside must not be rescanned on every
+                // scroll pass or every return to the screen — that is what keeps navigation
+                // smooth on a slow USB stick.
+                cache.put(request.cacheKey, request.nodeKey, NO_COVER)
+                cache.schedulePersist()
+            }
+            null
+        }
+    }
+
+    /** What the disk cache holds for one key. */
+    private sealed interface CacheHit {
+        data class Bytes(val bytes: ByteArray) : CacheHit
+
+        /** "This folder was scanned and holds no cover image" — see [NO_COVER]. */
+        data object NoCover : CacheHit
+    }
+
+    /** `null` = not cached yet; [CacheHit.NoCover] = cached as a folder without any cover. */
+    private suspend fun readCache(key: String): CacheHit? = cache.fileFor(key)?.let { file ->
+        if (file.length() == 0L) {
+            CacheHit.NoCover
+        } else {
+            runCatching { file.readBytes() }.getOrNull()?.let { CacheHit.Bytes(it) }
         }
     }
 
@@ -115,7 +145,9 @@ class ThumbnailRepository(
     private suspend fun generate(request: ThumbRequest, kind: MediaKind): ByteArray? {
         coroutineContext.ensureActive()
         return when {
-            request.node.isDirectory && request.folderPreview -> composeFolderPreview(request)
+            // Folder Cover: a poster image that lives inside the folder. Never a drawing of a
+            // folder, never a mosaic of its contents, never a frame of one of its videos.
+            request.node.isDirectory && request.folderCover -> folderCoverExtractor.extract(request)
             kind == MediaKind.VIDEO -> {
                 val duration = metadataRepository.peek(request.node)?.durationMs ?: 0L
                 videoExtractor.extract(request, duration)
@@ -126,64 +158,10 @@ class ThumbnailRepository(
         }
     }
 
-    /**
-     * Folder preview (spec §7): composed from the folder's *own* media — either a 2×2 mosaic or a
-     * Windows-style folder whose pocket is filled with those previews. Cached like any other
-     * thumbnail and switchable from settings.
-     */
-    private suspend fun composeFolderPreview(request: ThumbRequest): ByteArray? {
-        val windows = request.folderStyle == FolderPreviewStyle.WINDOWS
-        val children = docRepository.mediaChildren(request.node, request.folderPreviewCount)
-        // A folder with nothing previewable inside still gets the folder shape in Windows style,
-        // so the grid looks consistent instead of mixing folders and icons.
-        if (children.isEmpty()) return if (windows) emptyWindowsFolder(request) else null
-        val cell = (request.widthPx / 2).coerceAtLeast(64)
-        val parts = children.take(request.folderPreviewCount).map { child ->
-            coroutineContext.ensureActive()
-            val sub = request.copy(
-                node = child,
-                widthPx = cell * 2,
-                heightPx = cell * 2,
-                folderPreview = false,
-                poster = false,
-            )
-            bitmap(sub)
-        }
-        if (parts.all { it == null }) {
-            return if (windows) emptyWindowsFolder(request) else null
-        }
-        val grid = if (windows) {
-            Bitmaps.composeFolderWindows(
-                parts = parts,
-                width = request.widthPx,
-                height = request.heightPx,
-            )
-        } else {
-            Bitmaps.composeGrid(
-                parts = parts,
-                width = request.widthPx,
-                height = request.heightPx,
-                background = 0xFF101418.toInt(),
-            )
-        }
-        return runCatching { Bitmaps.encode(grid, request.quality) }.also {
-            parts.forEach { bmp -> bmp?.takeIf { !bmp.isRecycled }?.recycle() }
-            if (!grid.isRecycled) grid.recycle()
-        }.getOrNull()
-    }
-
-    /** Windows-style folder artwork with an empty pocket. */
-    private fun emptyWindowsFolder(request: ThumbRequest): ByteArray? {
-        val folder = Bitmaps.composeFolderWindows(emptyList(), request.widthPx, request.heightPx)
-        return runCatching { Bitmaps.encode(folder, request.quality) }.also {
-            if (!folder.isRecycled) folder.recycle()
-        }.getOrNull()
-    }
-
     private fun isPreviewAllowed(kind: MediaKind, s: AppSettings): Boolean = when (kind) {
         MediaKind.VIDEO -> s.videoThumbnailsEnabled
         MediaKind.IMAGE -> s.imageThumbnailsEnabled
-        MediaKind.DIRECTORY -> s.folderPreviewsEnabled
+        MediaKind.DIRECTORY -> s.folderCoversEnabled
         else -> false
     }
 
@@ -228,11 +206,25 @@ class ThumbnailRepository(
     suspend fun invalidate(node: DocNode) {
         cache.removeForNode(node.key)
         cache.removeForNode(node.stableKey)
+        invalidateParentCover(node)
         cache.schedulePersist()
         metadataRepository.invalidate(node)
     }
 
+    /**
+     * A folder's cover is derived from its children, so deleting, renaming, moving or replacing a
+     * file inside it must drop the parent's cached cover too — the next visit picks the new poster.
+     */
+    private suspend fun invalidateParentCover(node: DocNode) {
+        val parent = runCatching { docRepository.parentOf(node) }.getOrNull() ?: return
+        cache.removeForNode(parent.key)
+        cache.removeForNode(parent.stableKey)
+    }
+
     private companion object {
         const val PRUNE_EVERY = 24
+
+        /** Zero-length marker: "this folder was scanned and has no cover image". */
+        val NO_COVER = ByteArray(0)
     }
 }

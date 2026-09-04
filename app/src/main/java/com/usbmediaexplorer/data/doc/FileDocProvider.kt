@@ -62,6 +62,25 @@ class FileDocProvider(
             out
         }
 
+    override suspend fun coverScan(node: DocNode, imageLimit: Int, videoNameLimit: Int): FolderScan =
+        withContext(Dispatchers.IO) {
+            val file = node.uri.path?.let(::File) ?: return@withContext FolderScan.EMPTY
+            val images = ArrayList<DocNode>()
+            val videoNames = ArrayList<String>()
+            for (child in file.listFiles().orEmpty()) {
+                if (images.size >= imageLimit && videoNames.size >= videoNameLimit) break
+                when (MediaKind.ofExtension(child.extension)) {
+                    MediaKind.IMAGE -> if (images.size < imageLimit) images.add(toNode(child))
+                    MediaKind.VIDEO -> if (videoNames.size < videoNameLimit) {
+                        videoNames.add(child.nameWithoutExtension)
+                    }
+
+                    else -> Unit
+                }
+            }
+            FolderScan(images, videoNames)
+        }
+
     override suspend fun mediaCount(node: DocNode): MediaCount = withContext(Dispatchers.IO) {
         val file = node.uri.path?.let(::File) ?: return@withContext MediaCount()
         var videos = 0

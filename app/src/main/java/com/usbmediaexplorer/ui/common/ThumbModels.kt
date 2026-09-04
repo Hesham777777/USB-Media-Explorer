@@ -30,22 +30,18 @@ import com.usbmediaexplorer.ui.theme.Palette
 fun rememberThumbRequest(
     node: DocNode,
     settings: com.usbmediaexplorer.data.settings.AppSettings,
-    poster: Boolean = false,
 ): ThumbRequest? {
     val enabled = when (node.kind) {
         MediaKind.VIDEO -> settings.videoThumbnailsEnabled
         MediaKind.IMAGE -> settings.imageThumbnailsEnabled
-        MediaKind.DIRECTORY -> settings.folderPreviewsEnabled
+        MediaKind.DIRECTORY -> settings.folderCoversEnabled
         else -> false
     }
     if (!enabled) return null
     val px = settings.thumbSize.px
-    val posterTile = poster && node.kind == MediaKind.VIDEO
     return remember(
         node.key, settings.thumbSize, settings.thumbQuality, settings.frameStrategy,
-        settings.folderPreviewsEnabled, settings.folderPreviewMaxChildren,
-        settings.preferEmbeddedCover, settings.folderPreviewStyle, settings.posterCoversFirst,
-        posterTile,
+        settings.folderCoversEnabled, settings.folderCoverScanLimit, settings.preferEmbeddedCover,
     ) {
         ThumbRequest(
             node = node,
@@ -53,12 +49,9 @@ fun rememberThumbRequest(
             heightPx = px,
             quality = settings.thumbQuality,
             strategy = settings.frameStrategy,
-            folderPreview = node.isDirectory,
-            folderPreviewCount = settings.folderPreviewMaxChildren,
-            preferEmbeddedCover = settings.preferEmbeddedCover ||
-                (posterTile && settings.posterCoversFirst),
-            poster = posterTile,
-            folderStyle = settings.folderPreviewStyle,
+            folderCover = node.isDirectory,
+            coverScanLimit = settings.folderCoverScanLimit,
+            preferEmbeddedCover = settings.preferEmbeddedCover,
         )
     }
 }
@@ -73,10 +66,9 @@ fun MediaThumbnail(
     node: DocNode,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
-    poster: Boolean = false,
 ) {
     val settings = LocalSettings.current
-    val request = rememberThumbRequest(node, settings, poster)
+    val request = rememberThumbRequest(node, settings)
     val painter = rememberAsyncImagePainter(
         model = request,
         contentScale = contentScale,

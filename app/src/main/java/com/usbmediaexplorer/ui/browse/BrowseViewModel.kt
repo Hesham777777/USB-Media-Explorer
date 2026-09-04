@@ -659,10 +659,16 @@ class BrowseViewModel(
         _messages.tryEmit(text)
     }
 
+    /**
+     * Per-folder default (spec §22). A folder of videos wants big tiles so the real frames are
+     * readable; a folder made of movie folders wants the user's grid so its covers line up as a
+     * poster grid; a folder with nothing visual falls back to the list.
+     */
     private fun autoViewMode(counts: MediaCount, settings: AppSettings): ViewMode = when {
-        counts.videos > 0 -> settings.defaultViewMode
+        counts.videos > 0 -> ViewMode.GRID_LARGE
         counts.images > 0 && counts.mediaTotal >= 6 -> ViewMode.GRID_MEDIUM
         counts.mediaTotal > 0 -> ViewMode.GRID_SMALL
+        counts.folders > 0 -> settings.defaultViewMode
         else -> ViewMode.LIST
     }
 

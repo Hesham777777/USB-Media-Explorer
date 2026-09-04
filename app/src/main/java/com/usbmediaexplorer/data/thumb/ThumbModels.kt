@@ -1,7 +1,6 @@
 package com.usbmediaexplorer.data.thumb
 
 import com.usbmediaexplorer.data.doc.DocNode
-import com.usbmediaexplorer.data.settings.FolderPreviewStyle
 import com.usbmediaexplorer.data.settings.FrameStrategy
 import com.usbmediaexplorer.util.Hashing
 
@@ -15,17 +14,15 @@ data class ThumbRequest(
     val heightPx: Int,
     val quality: Int,
     val strategy: FrameStrategy,
-    val folderPreview: Boolean = false,
-    val folderPreviewCount: Int = 4,
-    val preferEmbeddedCover: Boolean = false,
     /**
-     * Poster presentation (spec §3 + §7): portrait artwork for the poster wall. Embedded cover
-     * art stored inside the file is tried first, and the frame is cropped to the poster ratio
-     * instead of being letterboxed. Still 100% offline — never a downloaded poster.
+     * True for a directory whose cover must be looked for among the images inside it
+     * (Folder Cover). Never true for a file: a video gets a frame from itself, an image is its own
+     * preview, and a folder is represented by a poster found inside it.
      */
-    val poster: Boolean = false,
-    /** Which folder artwork to compose: 2×2 mosaic or a Windows-style folder. */
-    val folderStyle: FolderPreviewStyle = FolderPreviewStyle.MONTAGE,
+    val folderCover: Boolean = false,
+    /** How many children are inspected while looking for that cover. */
+    val coverScanLimit: Int = 24,
+    val preferEmbeddedCover: Boolean = false,
 ) {
     val cacheKey: String = Hashing.md5Hex(
         buildString {
@@ -35,10 +32,8 @@ data class ThumbRequest(
             append('|').append(widthPx).append('x').append(heightPx)
             append('|').append(quality)
             append('|').append(strategy.name)
-            append('|').append(if (folderPreview) "fp$folderPreviewCount" else "no")
+            append('|').append(if (folderCover) "fc$coverScanLimit" else "no")
             append('|').append(if (preferEmbeddedCover) "cover" else "frame")
-            append('|').append(if (poster) "poster" else "std")
-            append('|').append(folderStyle.name)
             append('|').append(ENGINE_VERSION)
         },
     )
@@ -48,7 +43,7 @@ data class ThumbRequest(
 
     companion object {
         /** Bumped whenever the extraction pipeline changes, invalidating old cache entries. */
-        const val ENGINE_VERSION = 4
+        const val ENGINE_VERSION = 5
     }
 }
 

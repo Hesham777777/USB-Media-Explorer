@@ -23,15 +23,15 @@ class SettingsRepository(private val context: Context) {
     private object Keys {
         val VIDEO_THUMBS = booleanPreferencesKey("video_thumbnails")
         val IMAGE_THUMBS = booleanPreferencesKey("image_thumbnails")
-        val FOLDER_PREVIEWS = booleanPreferencesKey("folder_previews")
-        val FOLDER_PREVIEW_COUNT = intPreferencesKey("folder_preview_count")
+        // Same stored keys as before (saved user choices survive the upgrade), new meaning:
+        // "folder previews" is now the Folder Cover feature.
+        val FOLDER_COVERS = booleanPreferencesKey("folder_previews")
+        val FOLDER_COVER_SCAN = intPreferencesKey("folder_preview_count")
         val THUMB_SIZE = stringPreferencesKey("thumb_size")
         val THUMB_QUALITY = intPreferencesKey("thumb_quality")
         val FRAME_STRATEGY = stringPreferencesKey("frame_strategy")
         val PREFER_COVER = booleanPreferencesKey("prefer_embedded_cover")
         val CHARGING_ONLY = booleanPreferencesKey("charging_only")
-        val FOLDER_STYLE = stringPreferencesKey("folder_preview_style")
-        val POSTER_COVERS = booleanPreferencesKey("poster_covers_first")
         val CACHE_LIMIT = longPreferencesKey("cache_limit")
         val CACHE_ENABLED = booleanPreferencesKey("cache_enabled")
         val THEME = stringPreferencesKey("theme")
@@ -65,7 +65,10 @@ class SettingsRepository(private val context: Context) {
     // ---- individual setters used by the settings screen -------------------
     suspend fun setVideoThumbnails(value: Boolean) = set(Keys.VIDEO_THUMBS, value)
     suspend fun setImageThumbnails(value: Boolean) = set(Keys.IMAGE_THUMBS, value)
-    suspend fun setFolderPreviews(value: Boolean) = set(Keys.FOLDER_PREVIEWS, value)
+    suspend fun setFolderCovers(value: Boolean) = set(Keys.FOLDER_COVERS, value)
+
+    suspend fun setFolderCoverScanLimit(value: Int) =
+        set(Keys.FOLDER_COVER_SCAN, value.coerceIn(4, 64))
     suspend fun setThumbSize(value: ThumbSize) = set(Keys.THUMB_SIZE, value.name)
     suspend fun setThumbQuality(value: Int) = set(Keys.THUMB_QUALITY, value.coerceIn(30, 100))
     suspend fun setFrameStrategy(value: FrameStrategy) = set(Keys.FRAME_STRATEGY, value.name)
@@ -87,11 +90,6 @@ class SettingsRepository(private val context: Context) {
     suspend fun setAspectMode(value: AspectMode) = set(Keys.ASPECT, value.name)
     suspend fun setKeepScreenOn(value: Boolean) = set(Keys.KEEP_SCREEN_ON, value)
 
-    suspend fun setFolderPreviewStyle(value: FolderPreviewStyle) =
-        set(Keys.FOLDER_STYLE, value.name)
-
-    suspend fun setPosterCoversFirst(value: Boolean) = set(Keys.POSTER_COVERS, value)
-
     private suspend fun <T> set(key: Preferences.Key<T>, value: T) {
         context.settingsDataStore.edit { it[key] = value }
     }
@@ -99,22 +97,20 @@ class SettingsRepository(private val context: Context) {
     private fun Preferences.toSettings(): AppSettings = AppSettings(
         videoThumbnailsEnabled = this[Keys.VIDEO_THUMBS] ?: true,
         imageThumbnailsEnabled = this[Keys.IMAGE_THUMBS] ?: true,
-        folderPreviewsEnabled = this[Keys.FOLDER_PREVIEWS] ?: true,
-        folderPreviewMaxChildren = this[Keys.FOLDER_PREVIEW_COUNT] ?: 4,
+        folderCoversEnabled = this[Keys.FOLDER_COVERS] ?: true,
+        folderCoverScanLimit = (this[Keys.FOLDER_COVER_SCAN] ?: 24).coerceIn(4, 64),
         thumbSize = enumOrDefault(this[Keys.THUMB_SIZE], ThumbSize.LARGE),
         thumbQuality = (this[Keys.THUMB_QUALITY] ?: 82).coerceIn(30, 100),
         frameStrategy = enumOrDefault(this[Keys.FRAME_STRATEGY], FrameStrategy.AUTO),
         preferEmbeddedCover = this[Keys.PREFER_COVER] ?: false,
         generateWhileChargingOnly = this[Keys.CHARGING_ONLY] ?: false,
-        folderPreviewStyle = enumOrDefault(this[Keys.FOLDER_STYLE], FolderPreviewStyle.WINDOWS),
-        posterCoversFirst = this[Keys.POSTER_COVERS] ?: true,
         cacheLimitBytes = (this[Keys.CACHE_LIMIT] ?: (512L * 1024 * 1024))
             .coerceIn(32L * 1024 * 1024, 8L * 1024 * 1024 * 1024),
         cacheEnabled = this[Keys.CACHE_ENABLED] ?: true,
         themeMode = enumOrDefault(this[Keys.THEME], ThemeMode.SYSTEM),
         dynamicColor = this[Keys.DYNAMIC_COLOR] ?: true,
         languageMode = enumOrDefault(this[Keys.LANGUAGE], LanguageMode.SYSTEM),
-        defaultViewMode = enumOrDefault(this[Keys.VIEW_MODE], ViewMode.POSTER),
+        defaultViewMode = enumOrDefault(this[Keys.VIEW_MODE], ViewMode.GRID_MEDIUM),
         defaultSortMode = enumOrDefault(this[Keys.SORT_MODE], SortMode.NAME_ASC),
         foldersFirst = this[Keys.FOLDERS_FIRST] ?: true,
         showHiddenFiles = this[Keys.SHOW_HIDDEN] ?: false,
@@ -130,15 +126,13 @@ class SettingsRepository(private val context: Context) {
     private fun MutablePreferences.write(settings: AppSettings) {
         this[Keys.VIDEO_THUMBS] = settings.videoThumbnailsEnabled
         this[Keys.IMAGE_THUMBS] = settings.imageThumbnailsEnabled
-        this[Keys.FOLDER_PREVIEWS] = settings.folderPreviewsEnabled
-        this[Keys.FOLDER_PREVIEW_COUNT] = settings.folderPreviewMaxChildren
+        this[Keys.FOLDER_COVERS] = settings.folderCoversEnabled
+        this[Keys.FOLDER_COVER_SCAN] = settings.folderCoverScanLimit
         this[Keys.THUMB_SIZE] = settings.thumbSize.name
         this[Keys.THUMB_QUALITY] = settings.thumbQuality
         this[Keys.FRAME_STRATEGY] = settings.frameStrategy.name
         this[Keys.PREFER_COVER] = settings.preferEmbeddedCover
         this[Keys.CHARGING_ONLY] = settings.generateWhileChargingOnly
-        this[Keys.FOLDER_STYLE] = settings.folderPreviewStyle.name
-        this[Keys.POSTER_COVERS] = settings.posterCoversFirst
         this[Keys.CACHE_LIMIT] = settings.cacheLimitBytes
         this[Keys.CACHE_ENABLED] = settings.cacheEnabled
         this[Keys.THEME] = settings.themeMode.name

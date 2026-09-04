@@ -86,6 +86,32 @@ class SafDocProvider(
             out
         }
 
+    override suspend fun coverScan(node: DocNode, imageLimit: Int, videoNameLimit: Int): FolderScan =
+        withContext(Dispatchers.IO) {
+            val images = ArrayList<DocNode>()
+            val videoNames = ArrayList<String>()
+            val treeUri = treeFor(node.uri) ?: return@withContext FolderScan.EMPTY
+            val docId = DocUri.documentIdOf(node.uri) ?: return@withContext FolderScan.EMPTY
+            val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, docId)
+            query(childrenUri) { cursor ->
+                while (cursor.moveToNext()) {
+                    if (images.size >= imageLimit && videoNames.size >= videoNameLimit) break
+                    val id = cursor.getString(0) ?: continue
+                    val childUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, id)
+                    val child = rowToNode(childUri, cursor, docIdOverride = id)
+                    when (child.kind) {
+                        MediaKind.IMAGE -> if (images.size < imageLimit) images.add(child)
+                        MediaKind.VIDEO -> if (videoNames.size < videoNameLimit) {
+                            videoNames.add(child.nameWithoutExtension)
+                        }
+
+                        else -> Unit
+                    }
+                }
+            }
+            FolderScan(images, videoNames)
+        }
+
     override suspend fun mediaCount(node: DocNode): MediaCount = withContext(Dispatchers.IO) {
         var videos = 0
         var images = 0

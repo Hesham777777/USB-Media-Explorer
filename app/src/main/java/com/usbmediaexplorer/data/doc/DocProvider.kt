@@ -52,6 +52,29 @@ interface DocProvider {
     /** Media-only children, capped at [limit]; used for folder previews and playlists. */
     suspend fun mediaChildren(node: DocNode, limit: Int = Int.MAX_VALUE): List<DocNode>
 
+    /**
+     * One bounded pass over a folder for the Folder Cover feature: the images that could be the
+     * cover, plus a few movie names so a poster named after its movie can be recognised.
+     *
+     * Providers stop as soon as both limits are reached, so a folder holding thousands of files
+     * costs the same as a small one — the default implementation below falls back to [children]
+     * for providers that cannot short-circuit.
+     */
+    suspend fun coverScan(node: DocNode, imageLimit: Int, videoNameLimit: Int): FolderScan =
+        children(node).let { all ->
+            FolderScan(
+                images = all.asSequence()
+                    .filter { it.kind == MediaKind.IMAGE }
+                    .take(imageLimit)
+                    .toList(),
+                videoNames = all.asSequence()
+                    .filter { it.kind == MediaKind.VIDEO }
+                    .map { it.nameWithoutExtension }
+                    .take(videoNameLimit)
+                    .toList(),
+            )
+        }
+
     suspend fun mediaCount(node: DocNode): MediaCount
 
     suspend fun directorySize(node: DocNode): Long
@@ -91,4 +114,14 @@ interface DocProvider {
     fun totalBytes(node: DocNode): Long?
 
     fun fileSystemLabel(node: DocNode): String?
+}
+
+/**
+ * Result of [DocProvider.coverScan]: the cover candidates of a folder and the base names of the
+ * movies inside it (used to match `Movie.2010.mkv` with `Movie.2010.jpg`).
+ */
+data class FolderScan(val images: List<DocNode>, val videoNames: List<String>) {
+    companion object {
+        val EMPTY = FolderScan(emptyList(), emptyList())
+    }
 }

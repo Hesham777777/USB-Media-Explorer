@@ -23,7 +23,6 @@ import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FolderZip
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material.icons.outlined.ViewList
@@ -335,7 +334,6 @@ private fun labelForViewMode(mode: ViewMode): Int = when (mode) {
     ViewMode.GRID_MEDIUM -> R.string.view_grid_medium
     ViewMode.GRID_LARGE -> R.string.view_grid_large
     ViewMode.GRID_HUGE -> R.string.view_grid_huge
-    ViewMode.POSTER -> R.string.view_poster
 }
 
 private fun iconForViewMode(mode: ViewMode): ImageVector = when (mode) {
@@ -344,7 +342,6 @@ private fun iconForViewMode(mode: ViewMode): ImageVector = when (mode) {
     ViewMode.GRID_MEDIUM -> Icons.Outlined.Dashboard
     ViewMode.GRID_LARGE -> Icons.Outlined.GridView
     ViewMode.GRID_HUGE -> Icons.Outlined.GridOn
-    ViewMode.POSTER -> Icons.Outlined.Movie
 }
 
 private fun labelForSort(mode: SortMode): Int = when (mode) {
