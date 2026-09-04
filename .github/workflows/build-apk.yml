@@ -122,6 +122,26 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
+      # ينشر الـAPK في Release ثابت اسمه apk-latest حتى يبقى رابط التنزيل واحدًا
+      # ولا يحتاج المستخدم للدخول إلى سجل تشغيل Actions في كل مرة.
+      - name: Publish APKs to the apk-latest release
+        if: steps.build.outcome == 'success'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: 'أحدث نسخة APK جاهزة — USB Media Explorer'
+          body: |
+            ملف APK مبني تلقائيًا من آخر commit على هذا الفرع.
+
+            - `USB-Media-Explorer-debug.apk` — **جاهز للتثبيت مباشرة** (موقّع بمفتاح التطوير).
+            - `app-release-unsigned.apk` — نسخة مصغّرة بـ R8 (أصغر بكثير) لكنها تحتاج توقيعًا قبل التثبيت.
+
+            للتثبيت: انقل الملف إلى الهاتف ثم افتحه، وفعّل «التثبيت من مصادر غير معروفة» عند الطلب.
+          files: |
+            dist/USB-Media-Explorer-debug.apk
+            app/build/outputs/apk/release/*.apk
+          fail_on_unmatched_files: false
+
       - name: Publish GitHub Release (on tag)
         if: startsWith(github.ref, 'refs/tags/v') && steps.build.outcome == 'success'
         uses: softprops/action-gh-release@v2

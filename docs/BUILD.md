@@ -7,8 +7,10 @@
 1. ادفع أي commit إلى الفرع (أو افتح تبويب **Actions** في المستودع).
 2. سير العمل **Build APK** (`.github/workflows/build-apk.yml`) يعمل تلقائيًا على كل push
    إلى `main` أو `arena/**`، أو يدويًا عبر **Run workflow**.
-3. بعد ~5–10 دقائق، افتح تشغيل السير → قسم **Artifacts** → نزّل
-   `USB-Media-Explorer-debug-apk`.
+3. بعد ~5–10 دقائق تحصل على الملف من أحد مكانين:
+   - **Releases** → [`apk-latest`](https://github.com/Hesham777777/USB-Media-Explorer/releases/tag/apk-latest)
+     → نزّل `USB-Media-Explorer-debug.apk` (رابط ثابت يتحدث مع كل بناء ناجح)، أو
+   - تشغيل السير نفسه → قسم **Artifacts** → `USB-Media-Explorer-debug-apk`.
 4. انقل `USB-Media-Explorer-debug.apk` إلى الهاتف وثبّته مباشرة
    (نسخة debug موقّعة بمفتاح التطوير، لذلك يلزم تفعيل «تثبيت من مصادر غير معروفة»).
 
