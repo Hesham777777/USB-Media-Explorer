@@ -86,6 +86,14 @@ jobs:
           git commit -m "ci: publish build errors [skip ci]"
           git push
 
+      # continue-on-error على خطوة البناء يجعل النتيجة الخضراء كاذبة؛ هذه الخطوة تُفشل
+      # التشغيل فعليًا حتى لا يُنشر APK قديم وحتى يظهر الفشل بوضوح.
+      - name: Fail the run when the build failed
+        if: steps.build.outcome == 'failure'
+        run: |
+          echo "::error::Debug build failed - see ci-build-log.md on this branch for the compiler output."
+          exit 1
+
       - name: Collect APKs
         if: steps.build.outcome == 'success'
         run: |
