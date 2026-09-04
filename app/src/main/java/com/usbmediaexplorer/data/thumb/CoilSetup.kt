@@ -59,17 +59,23 @@ class ThumbKeyer : Keyer<ThumbRequest> {
     override fun key(data: ThumbRequest, options: Options): String = data.cacheKey
 }
 
-/** Turns a [ThumbRequest] into encoded image bytes produced by our own extractors. */
+/**
+ * Turns a [ThumbRequest] into encoded image bytes produced by our own extractors.
+ *
+ * [context] is required by Coil's `ImageSource(source, context)` factory: decoders that can only
+ * work from a file (EXIF, some video paths) get a scratch copy under Coil's safe cache dir.
+ */
 class ThumbFetcher(
     private val repository: ThumbnailRepository,
     private val request: ThumbRequest,
+    private val context: Context,
 ) : Fetcher {
 
     override suspend fun fetch(): FetchResult? {
         val bytes = repository.thumbnail(request) ?: return null
         val buffer = Buffer().apply { write(bytes) }
         return SourceResult(
-            source = ImageSource(buffer),
+            source = ImageSource(buffer, context),
             mimeType = "image/webp",
             dataSource = DataSource.DISK,
         )
@@ -80,5 +86,5 @@ class ThumbFetcherFactory(private val repository: ThumbnailRepository) :
     Fetcher.Factory<ThumbRequest> {
 
     override fun create(data: ThumbRequest, options: Options, imageLoader: ImageLoader): Fetcher =
-        ThumbFetcher(repository, data)
+        ThumbFetcher(repository, data, options.context)
 }
