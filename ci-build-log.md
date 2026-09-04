@@ -1,93 +1,8 @@
 # أخطاء البناء (توليد تلقائي من CI)
 
 ```
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/MainActivity.kt:122:1 Syntax error: Unclosed comment.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/doc/SafDocProvider.kt:190:69 Argument type mismatch: actual type is 'android.net.Uri?', but 'android.net.Uri' was expected.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/ops/FileOpsService.kt:12:29 Unresolved reference 'MainActivity'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/ops/FileOpsService.kt:79:13 Argument type mismatch: actual type is 'com.usbmediaexplorer.data.ops.FileOpsService', but 'android.content.Context!' was expected.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/ops/FileOpsService.kt:80:13 Argument type mismatch: actual type is 'kotlin.Int', but 'kotlin.Int' was expected.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/ops/FileOpsService.kt:81:13 Argument type mismatch: actual type is 'T', but 'android.content.Intent!' was expected.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/ops/FileOpsService.kt:81:26 Unresolved reference 'MainActivity'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/ops/FileOpsService.kt:81:46 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/ops/FileOpsService.kt:81:46 Unresolved reference. None of the following candidates is applicable because of a receiver type mismatch:
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/ops/FileOpsService.kt:81:52 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/ops/FileOpsService.kt:81:52 Unresolved reference. None of the following candidates is applicable because of a receiver type mismatch:
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/ops/FileOpsService.kt:81:58 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/ops/FileOpsService.kt:82:17 Unresolved reference 'action'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/ops/FileOpsService.kt:83:17 Unresolved reference 'putExtra'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/ops/FileOpsService.kt:83:26 Unresolved reference 'MainActivity'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/ops/FileOpsService.kt:85:13 Argument type mismatch: actual type is 'kotlin.Int', but 'kotlin.Int' was expected.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:149:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:150:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:151:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:152:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:153:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:154:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:155:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:156:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:157:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:158:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:159:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:160:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:161:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:162:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:163:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:164:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:165:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:166:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:167:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:168:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:169:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:170:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:171:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:172:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:173:13 No 'set' operator method providing array access.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/store/FavoritesStore.kt:30:23 Unresolved reference 'string'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/store/FavoritesStore.kt:31:23 Unresolved reference 'string'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/store/FavoritesStore.kt:32:24 Unresolved reference 'string'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/store/FavoritesStore.kt:34:28 Unresolved reference 'string'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/store/FavoritesStore.kt:35:31 Unresolved reference 'string'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/store/FavoritesStore.kt:36:27 Unresolved reference 'long'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/store/RecentStore.kt:34:23 Unresolved reference 'string'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/store/RecentStore.kt:35:23 Unresolved reference 'string'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/store/RecentStore.kt:36:24 Unresolved reference 'string'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/store/RecentStore.kt:38:28 Unresolved reference 'string'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/store/RecentStore.kt:39:31 Unresolved reference 'string'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/store/RecentStore.kt:40:24 Unresolved reference 'long'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/store/RecentStore.kt:41:32 Unresolved reference 'long'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/store/RecentStore.kt:42:28 Unresolved reference 'string'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/thumb/CoilSetup.kt:6:20 Unresolved reference 'FetchResult'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/thumb/CoilSetup.kt:7:20 Unresolved reference 'Fetcher'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/thumb/CoilSetup.kt:9:20 Unresolved reference 'SourceResult'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/thumb/CoilSetup.kt:10:20 Unresolved reference 'VideoFrameDecoder'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/thumb/CoilSetup.kt:32:17 None of the following candidates is applicable:
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/thumb/CoilSetup.kt:36:21 Unresolved reference 'VideoFrameDecoder'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/thumb/CoilSetup.kt:47:32 Argument type mismatch: actual type is 'java.util.concurrent.ExecutorService!', but 'kotlinx.coroutines.CoroutineDispatcher' was expected.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/thumb/CoilSetup.kt:48:32 Argument type mismatch: actual type is 'java.util.concurrent.ExecutorService', but 'kotlinx.coroutines.CoroutineDispatcher' was expected.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/thumb/CoilSetup.kt:66:5 Unresolved reference 'Fetcher'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/thumb/CoilSetup.kt:68:5 'fetch' overrides nothing.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/thumb/CoilSetup.kt:68:35 Unresolved reference 'FetchResult'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/thumb/CoilSetup.kt:71:16 Unresolved reference 'SourceResult'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/thumb/CoilSetup.kt:79:74 Unresolved reference 'Fetcher'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/thumb/CoilSetup.kt:80:5 'create' overrides nothing.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/thumb/CoilSetup.kt:80:90 Unresolved reference 'Fetcher'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/volume/VolumeMonitor.kt:107:69 Too many arguments for 'constructor(): StorageManager.StorageVolumeCallback'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/volume/VolumeMonitor.kt:107:71 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/volume/VolumeMonitor.kt:108:33 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/volume/VolumeMonitor.kt:108:45 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/volume/VolumeMonitor.kt:108:55 Unresolved reference 'getDescription'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/volume/VolumeMonitor.kt:110:33 Unresolved reference 'state'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/ui/common/Dialogs.kt:232:25 No parameter with name 'verticalArrangement' found.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/ui/common/Dialogs.kt:233:25 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/ui/common/Dialogs.kt:243:25 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/ui/common/Dialogs.kt:244:25 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/ui/player/PlayerScreen.kt:387:50 Unresolved reference 'RESIZE_MODE_STRETCH'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/ui/player/PlayerViewModel.kt:419:40 Argument type mismatch: actual type is 'kotlin.String', but 'kotlin.collections.(Mutable)List<androidx.media3.common.MediaItem.SubtitleConfiguration>' was expected.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/ui/player/PlayerViewModel.kt:419:48 Unresolved reference 'subtitleConfigurations'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/ui/settings/SettingsScreen.kt:618:50 Unresolved reference 'startInclusive'.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/ui/settings/SettingsScreen.kt:618:66 None of the following candidates is applicable:
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/util/Bitmaps.kt:159:62 Argument type mismatch: actual type is 'kotlin.Float', but 'kotlin.Double' was expected.
-e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/util/Bitmaps.kt:165:16 Return type mismatch: expected 'kotlin.Float', actual 'kotlin.Double'.
+e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/settings/SettingsRepository.kt:12:44 Unresolved reference 'set'.
+e: file:///home/runner/work/USB-Media-Explorer/USB-Media-Explorer/app/src/main/java/com/usbmediaexplorer/data/thumb/CoilSetup.kt:71:22 Argument type mismatch: actual type is 'okio.Buffer', but 'coil.decode.ImageSource' was expected.
 > Task :app:compileDebugKotlin FAILED
 FAILURE: Build failed with an exception.
 * What went wrong:
@@ -218,6 +133,6 @@ Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilat
 	... 2 more
 
 
-BUILD FAILED in 2m 19s
-29 actionable tasks: 29 executed
+BUILD FAILED in 2m 38s
+22 actionable tasks: 22 executed
 ```
