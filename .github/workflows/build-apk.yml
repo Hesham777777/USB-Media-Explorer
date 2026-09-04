@@ -110,10 +110,46 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      # continue-on-error حتى نستطيع نشر تقرير الفشل من داخل المستودع، وخطوة
+      # "Fail the run when the tests failed" below تُفشل التشغيل فعليًا.
       - name: Unit tests
+        id: tests
         if: steps.build.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.run_tests)
         continue-on-error: true
-        run: ./gradlew :app:testDebugUnitTest --no-daemon --console=plain --continue
+        run: |
+          set +e
+          ./gradlew :app:testDebugUnitTest --no-daemon --console=plain --continue 2>&1 | tee tests.log
+          code=${PIPESTATUS[0]}
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit $code
+
+      - name: Publish test failures (only on failure)
+        if: steps.tests.outcome == 'failure'
+        run: |
+          {
+            echo "# فشل اختبارات الوحدات (توليد تلقائي من CI)"
+            echo
+            echo '```'
+            grep -E "FAILED|AssertionError|expected:|ComparisonFailure|^e: |error:|Test.*>.*FAILED" tests.log | head -200
+            echo '```'
+            echo
+            echo "## آخر 80 سطرًا"
+            echo
+            echo '```'
+            tail -n 80 tests.log
+            echo '```'
+          } > ci-test-log.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ci-test-log.md
+          git commit -m "ci: publish unit test failures [skip ci]"
+          git push
+
+      - name: Fail the run when the tests failed
+        if: steps.tests.outcome == 'failure'
+        run: |
+          echo "::error::Unit tests failed - see ci-test-log.md on this branch."
+          exit 1
 
       - name: Build release APK (unsigned)
         if: steps.build.outcome == 'success'
