@@ -12,8 +12,8 @@ android {
         applicationId = "com.usbmediaexplorer"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -22,10 +22,31 @@ android {
         resourceConfigurations += listOf("en", "ar")
     }
 
+    // A stable signing key committed to the repo. Without it every CI run auto-generates a
+    // fresh random debug keystore, so each published APK carries a different signature and
+    // Android refuses to update over the previous install ("App not installed"). With this key
+    // every build - debug and release - is signed identically, so updates install over the old
+    // version and keep user data (favorites, recents, playback positions, thumbnail cache).
+    // This key signs direct-install APKs only; replace it with proper secrets before any
+    // store publication.
+    signingConfigs {
+        create("stable") {
+            storeFile = rootProject.file("keystore/usbmedia.p12")
+            storePassword = "usbmedia"
+            keyAlias = "usbmedia"
+            keyPassword = "usbmedia"
+            storeType = "PKCS12"
+        }
+    }
+    val stableKeystoreExists = rootProject.file("keystore/usbmedia.p12").exists()
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            if (stableKeystoreExists) {
+                signingConfig = signingConfigs.getByName("stable")
+            }
         }
         release {
             isMinifyEnabled = true
@@ -34,8 +55,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            // Add your own signing config before publishing:
-            // signingConfig = signingConfigs.getByName("release")
+            if (stableKeystoreExists) {
+                signingConfig = signingConfigs.getByName("stable")
+            }
         }
     }
 

@@ -1,7 +1,8 @@
 name: Build APK
 
 # يبني ملف APK جاهزًا للتثبيت على أي push أو يدويًا من تبويب Actions.
-# نسخة debug موقّعة بمفتاح التطوير، أي أنها تُثبَّت على الهاتف مباشرة.
+# النسختان (debug وrelease) موقّعتان بمفتاح ثابت مودَع في keystore/usbmedia.p12 حتى يُثبَّت
+# كل إصدار جديد فوق القديم مباشرة دون رسالة «App not installed» ودون فقدان بيانات المستخدم.
 on:
   push:
     branches: [ main, 'arena/**' ]
@@ -151,7 +152,7 @@ jobs:
           echo "::error::Unit tests failed - see ci-test-log.md on this branch."
           exit 1
 
-      - name: Build release APK (unsigned)
+      - name: Build release APK (signed with the stable key)
         if: steps.build.outcome == 'success'
         continue-on-error: true
         run: ./gradlew :app:assembleRelease --no-daemon --console=plain
@@ -161,10 +162,19 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: USB-Media-Explorer-release-unsigned-apk
+          name: USB-Media-Explorer-release-apk
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: ignore
           retention-days: 30
+
+      # الأصول القديمة الموقّعة بمفاتيح تطوير عشوائية تُربك التحديث؛ تُحذف حتى يبقى
+      # في الـRelease ملفان موقّعان بالمفتاح الثابت فقط.
+      - name: Remove legacy release assets
+        if: steps.build.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete-asset apk-latest app-release-unsigned.apk --yes 2>/dev/null || true
 
       # ينشر الـAPK في Release ثابت اسمه apk-latest حتى يبقى رابط التنزيل واحدًا
       # ولا يحتاج المستخدم للدخول إلى سجل تشغيل Actions في كل مرة.
@@ -177,8 +187,13 @@ jobs:
           body: |
             ملف APK مبني تلقائيًا من آخر commit على هذا الفرع.
 
-            - `USB-Media-Explorer-debug.apk` — **جاهز للتثبيت مباشرة** (موقّع بمفتاح التطوير).
-            - `app-release-unsigned.apk` — نسخة مصغّرة بـ R8 (أصغر بكثير) لكنها تحتاج توقيعًا قبل التثبيت.
+            - `USB-Media-Explorer-debug.apk` — **جاهز للتثبيت مباشرة** (النسخة الأساسية).
+            - `app-release.apk` — نسخة مصغّرة بـ R8 (أصغر وأسرع) موقّعة بنفس المفتاح الثابت.
+
+            كلا الملفين موقّعان بمفتاح ثابت: أي إصدار جديد يُثبَّت **فوق** الإصدار السابق مباشرة
+            ويحافظ على بيانات المستخدم (المفضلة، المجلدات الأخيرة، مواضع التشغيل، كاش المصغرات).
+            ملاحظة لمرة واحدة فقط: النسخ المثبّتة قبل 2026-09-05 وُقّعت بمفاتيح تطوير عشوائية،
+            لذا يلزم إزالة تثبيتها يدويًا قبل تثبيت هذه النسخة.
 
             للتثبيت: انقل الملف إلى الهاتف ثم افتحه، وفعّل «التثبيت من مصادر غير معروفة» عند الطلب.
           files: |
