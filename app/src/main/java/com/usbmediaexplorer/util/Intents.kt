@@ -4,6 +4,7 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.usbmediaexplorer.R
 import com.usbmediaexplorer.data.doc.DocNode
 import com.usbmediaexplorer.data.doc.MediaKind
 
@@ -41,6 +42,25 @@ object Intents {
             context.startActivity(intent)
             true
         }.getOrElse { false }
+    }
+
+    /**
+     * Always shows the chooser, even when a single app could handle the file (spec §8 "open with").
+     * Returns false when nothing on the device can open it at all.
+     */
+    fun openWith(context: Context, node: DocNode, uri: Uri): Boolean {
+        val mime = node.mimeType ?: MediaKind.mimeTypeFor(node.extension)
+        val view = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, mime)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        val chooser = Intent.createChooser(view, context.getString(R.string.action_open_with)).apply {
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        return runCatching {
+            context.startActivity(chooser)
+            true
+        }.getOrElse { open(context, node, uri) }
     }
 
     fun catchActivityNotFound(block: () -> Unit): Boolean = try {

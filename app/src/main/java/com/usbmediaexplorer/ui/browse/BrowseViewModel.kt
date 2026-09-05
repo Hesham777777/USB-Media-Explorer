@@ -11,6 +11,7 @@ import com.usbmediaexplorer.data.doc.DocSorter
 import com.usbmediaexplorer.data.doc.MediaCount
 import com.usbmediaexplorer.data.doc.isArchive
 import com.usbmediaexplorer.data.doc.isImage
+import com.usbmediaexplorer.data.doc.MediaKind
 import com.usbmediaexplorer.data.doc.isVideo
 import com.usbmediaexplorer.data.metadata.MediaMetadata
 import com.usbmediaexplorer.data.ops.BulkRenameRules
@@ -38,6 +39,26 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+/**
+ * Which slice of the current folder the browser is showing (spec §10).
+ *
+ * Filtering happens on the list that is already in memory — never by re-reading the drive, and
+ * never by recomputing covers or thumbnails.
+ */
+enum class KindFilter {
+    ALL, VIDEO, IMAGE, AUDIO, FOLDER, ARCHIVE, FILE;
+
+    fun matches(node: DocNode): Boolean = when (this) {
+        ALL -> true
+        VIDEO -> node.kind == MediaKind.VIDEO
+        IMAGE -> node.kind == MediaKind.IMAGE
+        AUDIO -> node.kind == MediaKind.AUDIO
+        FOLDER -> node.isDirectory
+        ARCHIVE -> node.kind == MediaKind.ARCHIVE
+        FILE -> !node.isDirectory
+    }
+}
 
 /** A row/card in the browser: the node plus everything the UI decorates it with. */
 data class DocItem(
@@ -77,8 +98,15 @@ data class BrowseUiState(
     val clipboardIsCut: Boolean = false,
     val canWrite: Boolean = false,
     val showHidden: Boolean = false,
+    val query: String = "",
+    val kindFilter: KindFilter = KindFilter.ALL,
+    /** Count of everything in the folder, before the query/kind filter is applied. */
+    val totalCount: Int = 0,
+    /** Summed size of the files in the folder (folders report no size of their own). */
+    val totalSize: Long = 0,
 ) {
     val selectedNodesCount: Int get() = selection.size
+    val isFiltered: Boolean get() = query.isNotBlank() || kindFilter != KindFilter.ALL
 }
 
 data class DetailsState(
@@ -113,6 +141,8 @@ class BrowseViewModel(
     private val error = MutableStateFlow<String?>(null)
     private val selection = MutableStateFlow<Set<String>>(emptySet())
     private val selecting = MutableStateFlow(false)
+    private val query = MutableStateFlow("")
+    private val kindFilter = MutableStateFlow(KindFilter.ALL)
 
     private val _details = MutableStateFlow<DetailsState?>(null)
     val details: StateFlow<DetailsState?> = _details.asStateFlow()
@@ -172,7 +202,17 @@ class BrowseViewModel(
         )
     }
 
-    private val selectionState = combine(selection, selecting) { sel, isSelecting -> sel to isSelecting }
+    private data class Controls(
+        val selection: Set<String>,
+        val selecting: Boolean,
+        val query: String,
+        val filter: KindFilter,
+    )
+
+    private val selectionState: kotlinx.coroutines.flow.Flow<Controls> =
+        combine(selection, selecting, query, kindFilter) { sel, isSelecting, q, kf ->
+            Controls(sel, isSelecting, q, kf)
+        }
 
     private val items: kotlinx.coroutines.flow.Flow<List<DocItem>> = combine(
         rawChildren,
@@ -199,11 +239,18 @@ class BrowseViewModel(
         selectionState,
         core,
         opsManager.clipboard,
-    ) { itemList, pres, sel, coreState, clipboard ->
+    ) { itemList, pres, ctrl, coreState, clipboard ->
         val settings = pres.settings
         val prefs = pres.prefs
         val visible = itemList.filter { settings.showHiddenFiles || !it.node.isHidden }
         val counts = mediaCountOf(visible.map { it.node })
+        val totalSize = visible.sumOf { if (it.node.isDirectory) 0L else it.node.size.coerceAtLeast(0L) }
+        // Instant, in-memory filtering: the same list the user is already looking at (spec §10).
+        val needle = ctrl.query.trim()
+        val matched = visible.filter { item ->
+            ctrl.filter.matches(item.node) &&
+                (needle.isEmpty() || item.node.name.contains(needle, ignoreCase = true))
+        }
         val sortMode = if (settings.rememberPerFolderView) {
             prefs.sortMode ?: settings.defaultSortMode
         } else {
@@ -215,7 +262,7 @@ class BrowseViewModel(
             autoViewMode(counts, settings)
         }
         val sortedNodes = DocSorter.sort(
-            nodes = visible.map { it.node },
+            nodes = matched.map { it.node },
             mode = sortMode,
             foldersFirst = settings.foldersFirst,
             metadata = { node -> metadataRepository.peek(node) },
@@ -230,14 +277,18 @@ class BrowseViewModel(
             viewMode = viewMode,
             sortMode = sortMode,
             foldersFirst = settings.foldersFirst,
-            selection = sel.first,
-            selecting = sel.second,
+            selection = ctrl.selection,
+            selecting = ctrl.selecting,
             mediaCount = counts,
             volume = coreState.volume,
             clipboardCount = clipboard?.items?.size ?: 0,
             clipboardIsCut = clipboard?.isCut == true,
             canWrite = coreState.node?.isWritable == true && coreState.node.isDirectory,
             showHidden = settings.showHiddenFiles,
+            query = ctrl.query,
+            kindFilter = ctrl.filter,
+            totalCount = visible.size,
+            totalSize = totalSize,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BrowseUiState())
 
@@ -275,7 +326,9 @@ class BrowseViewModel(
             loading.value = false
             return
         }
+        val changedFolder = currentNode.value?.uri?.toString() != uriString
         viewModelScope.launch {
+            if (changedFolder) clearFilters()
             loading.value = true
             error.value = null
             val uri = runCatching { Uri.parse(uriString) }.getOrNull()
@@ -558,6 +611,28 @@ class BrowseViewModel(
     // ------------------------------------------------------------------
 
     /** Per-folder override when enabled, plus the new global default (spec §13). */
+    /** Instant search inside the current folder — no drive access, no re-scan. */
+    fun setQuery(value: String) {
+        query.value = value
+    }
+
+    fun setKindFilter(filter: KindFilter) {
+        kindFilter.value = filter
+    }
+
+    fun clearFilters() {
+        query.value = ""
+        kindFilter.value = KindFilter.ALL
+    }
+
+    /** The next view mode in the cycle, for the one-tap switcher in the action bar (spec §6). */
+    fun cycleViewMode() {
+        val current = state.value.viewMode
+        val all = ViewMode.entries
+        val next = all[(all.indexOf(current) + 1) % all.size]
+        setViewMode(next)
+    }
+
     fun setViewMode(mode: ViewMode) {
         viewModelScope.launch {
             state.value.node?.stableKey?.let { key ->

@@ -856,7 +856,7 @@ private fun RecentVideosRow(
 private fun shortPath(displayPath: String, volumeName: String): String {
     val source = displayPath.ifBlank { volumeName }
     if (source.isBlank()) return ""
-    val parts = source.split("›", '/').map { it.trim() }.filter { it.isNotEmpty() }
+    val parts = source.split("›", "/").map { it.trim() }.filter { it.isNotEmpty() }
     if (parts.size <= 2) return parts.joinToString(" › ")
     return parts.takeLast(2).joinToString(" › ")
 }

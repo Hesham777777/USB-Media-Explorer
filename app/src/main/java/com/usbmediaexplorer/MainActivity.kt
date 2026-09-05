@@ -4,6 +4,7 @@ import android.content.Intent
 import android.hardware.usb.UsbManager
 import android.net.Uri
 import android.os.Bundle
+import android.provider.DocumentsContract
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -85,10 +86,14 @@ class MainActivity : AppCompatActivity() {
             Intent.ACTION_VIEW -> {
                 val uri = intent.data ?: return
                 val type = intent.type ?: contentResolver.getType(uri).orEmpty()
-                pendingRoute.value = if (type.startsWith("image/")) {
-                    Routes.image(uri, null)
-                } else {
-                    Routes.player(uri, null)
+                pendingRoute.value = when {
+                    // A pinned home-screen shortcut to a folder (or a tree URI from another app)
+                    // belongs in the browser — sending it to the player would fail silently.
+                    type == DocumentsContract.Document.MIME_TYPE_DIR ||
+                        uri.toString().contains("/tree/") -> Routes.browse(uri)
+
+                    type.startsWith("image/") -> Routes.image(uri, null)
+                    else -> Routes.player(uri, null)
                 }
             }
 

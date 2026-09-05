@@ -1,6 +1,6 @@
 package com.usbmediaexplorer.ui.browse.components
 
-import androidx.compose.foundation.ExperimentalFoundationApi
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,11 +24,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -46,6 +42,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.usbmediaexplorer.R
 import com.usbmediaexplorer.data.doc.DocNode
@@ -55,17 +52,24 @@ import com.usbmediaexplorer.data.settings.FOLDER_COVER_ASPECT
 import com.usbmediaexplorer.data.settings.ViewMode
 import com.usbmediaexplorer.ui.browse.DocItem
 import com.usbmediaexplorer.ui.common.LocalSettings
+import com.usbmediaexplorer.ui.common.MediaStates
 import com.usbmediaexplorer.ui.common.MediaThumbnail
+import com.usbmediaexplorer.ui.common.PressableSurface
+import com.usbmediaexplorer.ui.common.bidiLtr
+import com.usbmediaexplorer.ui.common.bidiName
+import com.usbmediaexplorer.ui.theme.AppRadius
+import com.usbmediaexplorer.ui.theme.AppSpacing
 import com.usbmediaexplorer.util.Formatters
 
 /**
- * The virtualised media browser (spec §2, §22).
+ * The virtualised media browser (spec §6, §23, §24).
  *
- * One component renders all five view modes; only the column count and the card layout change.
- * Lazy layouts plus per-card [onVisible] callbacks are what make a 5 000-video folder scroll
- * without preloading anything.
+ * One component renders every view mode — grid, list and compact list — and only the column count
+ * and the row layout change between them. Lazy layouts plus the per-card [onVisible] callback are
+ * what let a folder with thousands of videos scroll without preloading anything: metadata, covers
+ * and frames are resolved for what is actually on screen and then cached, never recomputed while
+ * the list recomposes.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DocItemsView(
     items: List<DocItem>,
@@ -78,16 +82,17 @@ fun DocItemsView(
     onMore: (DocItem) -> Unit,
     onVisible: (DocNode) -> Unit,
     modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = PaddingValues(12.dp),
+    contentPadding: PaddingValues = PaddingValues(AppSpacing.md),
 ) {
-    val landscape = LocalConfiguration.current.orientation ==
-        android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val settings = LocalSettings.current
+    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    if (viewMode == ViewMode.LIST) {
+    if (viewMode.isList) {
+        val compact = viewMode == ViewMode.COMPACT_LIST
         LazyColumn(
             modifier = modifier.fillMaxSize(),
             contentPadding = contentPadding,
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.listGap),
         ) {
             items(items, key = { it.node.key }) { item ->
                 LaunchedEffect(item.node.key) { onVisible(item.node) }
@@ -95,23 +100,27 @@ fun DocItemsView(
                     item = item,
                     selected = item.node.key in selection,
                     selecting = selecting,
+                    compact = compact,
                     onOpen = { onOpen(item) },
                     onLongPress = { onLongPress(item) },
                     onToggleSelect = { onToggleSelect(item) },
                     onMore = { onMore(item) },
+                    modifier = Modifier.animateItem(),
                 )
             }
         }
         return
     }
 
-    val columns = if (landscape) viewMode.columnsLandscape else viewMode.columnsPortrait
+    // Dynamic columns: orientation first, then the user's item-size preference (spec §24).
+    val base = if (landscape) viewMode.columnsLandscape else viewMode.columnsPortrait
+    val columns = (base + settings.itemScale.columnsDelta).coerceAtLeast(1)
     LazyVerticalGrid(
-        columns = GridCells.Fixed(columns.coerceAtLeast(1)),
+        columns = GridCells.Fixed(columns),
         modifier = modifier.fillMaxSize(),
         contentPadding = contentPadding,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(AppSpacing.md),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.md),
     ) {
         items(items, key = { it.node.key }) { item ->
             LaunchedEffect(item.node.key) { onVisible(item.node) }
@@ -123,12 +132,16 @@ fun DocItemsView(
                 onOpen = { onOpen(item) },
                 onLongPress = { onLongPress(item) },
                 onToggleSelect = { onToggleSelect(item) },
+                modifier = Modifier.animateItem(),
             )
         }
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+/* ---------------------------------------------------------------------------
+ * Grid tile
+ * ------------------------------------------------------------------------- */
+
 @Composable
 fun DocCard(
     item: DocItem,
@@ -144,67 +157,41 @@ fun DocCard(
     val settings = LocalSettings.current
     val compact = viewMode == ViewMode.GRID_SMALL
 
-    // Folder Cover: a folder that holds a poster image inside it is drawn as that poster, in
-    // poster proportions, with the folder name underneath. It is still the folder — tapping it
-    // opens it, long-pressing selects it — only its artwork changed. Folders without any image
-    // fall back to the ordinary folder icon on the same tile.
-    val coverCard = node.isDirectory &&
-        settings.folderCoversEnabled &&
-        viewMode != ViewMode.LIST
+    // Folder Cover: a folder holding a poster inside is drawn as that poster, in poster
+    // proportions, with the name underneath. It is still the folder — tapping opens it,
+    // long-pressing selects it — only its artwork changed. Folders with no cover image fall back
+    // to the ordinary folder icon on the same tile. No montage, no folder drawing, no cropping.
+    val coverCard = node.isDirectory && settings.folderCoversEnabled && !viewMode.isList
     val mediaAspect = when {
         coverCard -> FOLDER_COVER_ASPECT
         viewMode.aspectRatio > 0f -> viewMode.aspectRatio
         else -> 1f
     }
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .combinedClickable(
-                onClick = { if (selecting) onToggleSelect() else onOpen() },
-                onLongClick = onLongPress,
-            ),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) {
-                MaterialTheme.colorScheme.secondaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            },
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (selected) 2.dp else 0.dp),
+
+    PressableSurface(
+        onClick = { if (selecting) onToggleSelect() else onOpen() },
+        onLongClick = onLongPress,
+        selected = selected,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(AppRadius.lg),
     ) {
         Column {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(mediaAspect),
-            ) {
+            Box(Modifier.fillMaxWidth().aspectRatio(mediaAspect)) {
                 MediaThumbnail(
                     node = node,
                     modifier = Modifier.fillMaxSize(),
-                    // Fit for covers: the poster keeps its own ratio, never stretched, never
-                    // cropped away. Crop for files: a frame or a photo fills its tile.
+                    // Fit for covers so a poster keeps its own ratio; Crop for files so a frame or
+                    // a photo fills its tile.
                     contentScale = if (coverCard) ContentScale.Fit else ContentScale.Crop,
                 )
 
                 if (node.kind == MediaKind.VIDEO) {
                     val duration = item.metadata?.durationMs ?: 0L
                     if (duration > 0) {
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = Color.Black.copy(alpha = 0.62f),
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(6.dp),
-                        ) {
-                            Text(
-                                text = Formatters.duration(duration),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            )
-                        }
+                        OverlayChip(
+                            text = Formatters.duration(duration),
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
+                        )
                     }
                     val resume = item.resume
                     if (resume != null && resume.progress > 0.01f) {
@@ -223,18 +210,16 @@ fun DocCard(
                 if (node.isDirectory) {
                     val media = item.counts?.mediaTotal ?: 0
                     if (media > 0) {
-                        FolderBadge(
+                        OverlayChip(
                             text = media.toString(),
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(6.dp),
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
                         )
                     }
                 }
 
                 if (item.favorite) {
                     Icon(
-                        Icons.Outlined.Favorite,
+                        MediaStates.Favorite,
                         contentDescription = stringResource(R.string.action_favorite),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
@@ -248,16 +233,19 @@ fun DocCard(
                     SelectionDot(
                         selected = selected,
                         onClick = onToggleSelect,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(6.dp),
+                        modifier = Modifier.align(Alignment.TopEnd).padding(6.dp),
                     )
                 }
             }
 
-            Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+            Column(
+                Modifier.padding(
+                    horizontal = if (compact) 8.dp else 10.dp,
+                    vertical = if (compact) 6.dp else 8.dp,
+                ),
+            ) {
                 Text(
-                    text = if (node.isDirectory) node.name else node.nameWithoutExtension,
+                    text = displayName(node, settings.showExtensions).bidiName(),
                     style = if (compact) {
                         MaterialTheme.typography.labelMedium
                     } else {
@@ -267,22 +255,28 @@ fun DocCard(
                     maxLines = if (compact) 1 else 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (!compact) {
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = itemSubtitle(item),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                if (!compact && settings.showMediaInfo) {
+                    val subtitle = itemSubtitle(item)
+                    if (subtitle.isNotEmpty()) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = subtitle.bidiLtr(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+/* ---------------------------------------------------------------------------
+ * List row (and compact list row)
+ * ------------------------------------------------------------------------- */
+
 @Composable
 fun DocRow(
     item: DocItem,
@@ -293,31 +287,33 @@ fun DocRow(
     onToggleSelect: () -> Unit,
     onMore: () -> Unit,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     val node = item.node
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .combinedClickable(
-                onClick = { if (selecting) onToggleSelect() else onOpen() },
-                onLongClick = onLongPress,
-            ),
-        color = if (selected) {
-            MaterialTheme.colorScheme.secondaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
-        },
-        shape = RoundedCornerShape(14.dp),
+    val settings = LocalSettings.current
+    val scale = settings.itemScale
+    val rowHeight: Dp = if (compact) 44.dp else scale.rowHeight.dp
+    val thumbSize: Dp = if (compact) 30.dp else scale.thumb.dp
+    val thumbRadius = if (compact) AppRadius.xs else AppRadius.sm
+
+    PressableSurface(
+        onClick = { if (selecting) onToggleSelect() else onOpen() },
+        onLongClick = onLongPress,
+        selected = selected,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(AppRadius.md),
     ) {
         Row(
-            Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            Modifier
+                .fillMaxWidth()
+                .height(rowHeight)
+                .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
                 Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(10.dp)),
+                    .size(thumbSize)
+                    .clip(RoundedCornerShape(thumbRadius)),
             ) {
                 MediaThumbnail(node = node, modifier = Modifier.fillMaxSize())
                 val resume = item.resume
@@ -331,29 +327,49 @@ fun DocRow(
                     )
                 }
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(AppSpacing.md))
             Column(Modifier.weight(1f)) {
                 Text(
-                    text = node.name,
-                    style = MaterialTheme.typography.titleSmall,
+                    text = displayName(node, settings.showExtensions).bidiName(),
+                    style = if (compact) {
+                        MaterialTheme.typography.bodyMedium
+                    } else {
+                        MaterialTheme.typography.titleSmall
+                    },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = itemSubtitle(item),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                if (!compact && settings.showMediaInfo) {
+                    val subtitle = itemSubtitle(item)
+                    if (subtitle.isNotEmpty()) {
+                        Text(
+                            text = subtitle.bidiLtr(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+            if (item.favorite && !selecting) {
+                Icon(
+                    MediaStates.Favorite,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(15.dp),
                 )
+                Spacer(Modifier.width(6.dp))
             }
             if (selecting) {
                 SelectionDot(selected = selected, onClick = onToggleSelect)
-            } else {
-                IconButton(onClick = onMore) {
+            } else if (!compact) {
+                IconButton(onClick = onMore, modifier = Modifier.size(34.dp)) {
                     Icon(
                         Icons.Outlined.MoreVert,
                         contentDescription = stringResource(R.string.action_more),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
@@ -361,7 +377,10 @@ fun DocRow(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+/* ---------------------------------------------------------------------------
+ * Small pieces
+ * ------------------------------------------------------------------------- */
+
 @Composable
 private fun SelectionDot(selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(
@@ -369,14 +388,19 @@ private fun SelectionDot(selected: Boolean, onClick: () -> Unit, modifier: Modif
             .size(26.dp)
             .clip(CircleShape)
             .background(
-                if (selected) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.45f),
+                if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    Color.Black.copy(alpha = 0.45f)
+                },
             )
+            // Tapping the dot toggles the item without opening it.
             .combinedClickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         if (selected) {
             Icon(
-                imageVector = Icons.Outlined.Check,
+                imageVector = MediaStates.Selected,
                 contentDescription = stringResource(R.string.cd_select),
                 tint = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(16.dp),
@@ -385,16 +409,17 @@ private fun SelectionDot(selected: Boolean, onClick: () -> Unit, modifier: Modif
     }
 }
 
+/** A small dark pill over a thumbnail: duration, or a folder's media count. */
 @Composable
-private fun FolderBadge(text: String, modifier: Modifier = Modifier) {
+private fun OverlayChip(text: String, modifier: Modifier = Modifier) {
     if (text.isEmpty()) return
     Surface(
-        shape = RoundedCornerShape(6.dp),
+        shape = RoundedCornerShape(AppRadius.xs),
         color = Color.Black.copy(alpha = 0.62f),
         modifier = modifier,
     ) {
         Text(
-            text = text,
+            text = text.bidiLtr(),
             style = MaterialTheme.typography.labelSmall,
             color = Color.White,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
@@ -402,7 +427,17 @@ private fun FolderBadge(text: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** "2.41 GB • 2:04:18 • 1080p" — the info line under every preview (spec §8). */
+/**
+ * What the tile shows as its name: the extension is a setting (spec §17), and folders always keep
+ * their full name because it is part of the identity the user searches for.
+ */
+private fun displayName(node: DocNode, showExtensions: Boolean): String = when {
+    node.isDirectory -> node.name
+    showExtensions -> node.name
+    else -> node.nameWithoutExtension
+}
+
+/** "2.41 GB • 2:04:18 • 1080p" — the info line under every preview (spec §6). */
 @Composable
 fun itemSubtitle(item: DocItem): String {
     val node = item.node
@@ -428,7 +463,7 @@ fun itemSubtitle(item: DocItem): String {
             metadata?.durationMs?.takeIf { it > 0 }?.let { parts += Formatters.duration(it) }
             metadata?.resolutionLabel?.takeIf { it.isNotEmpty() }?.let { parts += it }
             if (parts.size < 3 && settings.lazyMetadata && metadata == null) {
-                // Nothing yet: show the modified date so the line is never empty.
+                // Nothing resolved yet: show the modified date so the line is never empty.
                 parts += Formatters.date(node.lastModified)
             }
         }

@@ -1,12 +1,21 @@
 package com.usbmediaexplorer.data.settings
 
-/** How the grid presents items. Column counts adapt to orientation. */
+/**
+ * How items are presented (spec §6): two list densities and four grid densities.
+ *
+ * Column counts adapt to orientation, and the item-size preference shifts them by one. Values are
+ * persisted by name, so an entry added later is simply ignored by older saved preferences.
+ */
 enum class ViewMode(val columnsPortrait: Int, val columnsLandscape: Int, val aspectRatio: Float) {
     LIST(1, 1, 0f),
+    COMPACT_LIST(1, 1, 0f),
     GRID_SMALL(4, 6, 1f),
     GRID_MEDIUM(3, 4, 1f),
     GRID_LARGE(2, 3, 16f / 9f),
-    GRID_HUGE(1, 2, 16f / 9f),
+    GRID_HUGE(1, 2, 16f / 9f);
+
+    /** Both list densities render as rows; everything else is a grid. */
+    val isList: Boolean get() = this == LIST || this == COMPACT_LIST
 }
 
 /**

@@ -453,6 +453,7 @@ private fun languageLabel(mode: LanguageMode): Int = when (mode) {
 
 private fun viewModeLabel(mode: ViewMode): Int = when (mode) {
     ViewMode.LIST -> R.string.view_list
+    ViewMode.COMPACT_LIST -> R.string.view_compact_list
     ViewMode.GRID_SMALL -> R.string.view_grid_small
     ViewMode.GRID_MEDIUM -> R.string.view_grid_medium
     ViewMode.GRID_LARGE -> R.string.view_grid_large
