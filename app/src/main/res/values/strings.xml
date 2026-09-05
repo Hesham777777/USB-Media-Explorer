@@ -11,6 +11,7 @@
     <string name="action_move">Move</string>
     <string name="action_delete">Delete</string>
     <string name="action_rename">Rename</string>
+    <string name="action_rename_short">Rename</string>
     <string name="action_details">Details</string>
     <string name="action_favorite">Add to favorites</string>
     <string name="action_unfavorite">Remove from favorites</string>
@@ -23,10 +24,12 @@
     <string name="action_select_all">Select all</string>
     <string name="action_invert_selection">Invert selection</string>
     <string name="action_new_folder">New folder</string>
+    <string name="action_new_folder_short">Folder</string>
     <string name="action_new_file">New file</string>
     <string name="action_zip">Compress (ZIP)</string>
     <string name="action_unzip">Extract here</string>
     <string name="action_bulk_rename">Bulk rename</string>
+    <string name="action_bulk_rename_short">Rename all</string>
     <string name="action_search">Search</string>
     <string name="action_sort">Sort</string>
     <string name="action_view_mode">View</string>
@@ -34,6 +37,7 @@
     <string name="action_refresh">Refresh</string>
     <string name="action_grant_access">Grant access</string>
     <string name="action_more">More options</string>
+    <string name="action_more_short">More</string>
     <string name="action_back">Back</string>
     <string name="action_resume">Resume</string>
     <string name="action_start_over">Start over</string>
@@ -82,6 +86,7 @@
     <string name="sort_duration">Duration</string>
     <string name="sort_folders_first">Folders first</string>
     <string name="view_mode">View mode</string>
+    <string name="view_mode_short">View</string>
     <string name="view_list">List</string>
     <string name="view_grid_small">Small grid</string>
     <string name="view_grid_medium">Medium grid</string>
@@ -202,6 +207,8 @@
     <string name="setting_folder_covers">Folder covers</string>
     <!-- No apostrophes in here: aapt2 rejects an unescaped one inside a values resource. -->
     <string name="setting_folder_covers_desc">Use an image named poster, folder or cover inside a folder as its cover in grid views; other pictures are never used</string>
+    <string name="setting_audio_art">Music artwork</string>
+    <string name="setting_audio_art_desc">Show the cover image stored inside an audio file; it is read from the file itself and never downloaded</string>
     <string name="setting_thumb_size">Thumbnail size</string>
     <string name="setting_thumb_quality">Thumbnail quality</string>
     <string name="setting_frame_position">Frame used for preview</string>
@@ -280,6 +287,7 @@
     <string name="volume_remove_grant">Remove access</string>
     <string name="volume_used_of_total">%1$s of %2$s</string>
     <string name="volume_free_space">%1$s free</string>
+    <string name="volume_capacity_short">Capacity %1$s</string>
     <string name="volume_used_label">Used</string>
     <string name="volume_free_label">Free</string>
     <string name="volume_details_group">Volume</string>
@@ -443,6 +451,7 @@
     <string name="cache_kind_video">Video thumbnails</string>
     <string name="cache_kind_image">Image previews</string>
     <string name="cache_kind_cover">Folder covers</string>
+    <string name="cache_kind_audio">Music artwork</string>
     <string name="cache_kind_other">Other previews</string>
     <string name="cache_kind_detail">%1$d items • %2$s</string>
     <!-- Redesign: search filters -->

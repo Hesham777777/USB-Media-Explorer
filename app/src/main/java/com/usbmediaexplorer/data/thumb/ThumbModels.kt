@@ -1,6 +1,7 @@
 package com.usbmediaexplorer.data.thumb
 
 import com.usbmediaexplorer.data.doc.DocNode
+import com.usbmediaexplorer.data.doc.isAudio
 import com.usbmediaexplorer.data.doc.isImage
 import com.usbmediaexplorer.data.doc.isVideo
 import com.usbmediaexplorer.data.settings.FrameStrategy
@@ -52,12 +53,13 @@ data class ThumbRequest(
             folderCover -> ThumbnailCache.KIND_COVER
             node.isVideo -> ThumbnailCache.KIND_VIDEO
             node.isImage -> ThumbnailCache.KIND_IMAGE
+            node.isAudio -> ThumbnailCache.KIND_AUDIO
             else -> ThumbnailCache.KIND_OTHER
         }
 
     companion object {
         /** Bumped whenever the extraction pipeline changes, invalidating old cache entries. */
-        const val ENGINE_VERSION = 6
+        const val ENGINE_VERSION = 7
     }
 }
 

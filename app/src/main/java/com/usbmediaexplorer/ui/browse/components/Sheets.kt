@@ -384,49 +384,52 @@ fun ItemActionsSheet(
             )
 
             // ---- manage ----------------------------------------------------
-            if (canWrite) {
-                SheetDivider()
-                SheetGroupLabel(stringResource(R.string.sheet_group_manage))
-                Row(Modifier.fillMaxWidth()) {
-                    SheetAction(
-                        icon = Icons.Outlined.ContentCopy,
-                        label = stringResource(R.string.action_copy),
-                        onClick = {
-                            onCopy()
-                            onDismiss()
-                        },
-                        modifier = Modifier.weight(1f),
-                    )
-                    SheetAction(
-                        icon = Icons.Outlined.ContentCut,
-                        label = stringResource(R.string.action_move),
-                        onClick = {
-                            onCut()
-                            onDismiss()
-                        },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
+            // Always visible: hiding the whole group on a read-only volume made the sheet
+            // look broken. Actions that genuinely cannot apply are shown greyed instead.
+            SheetDivider()
+            SheetGroupLabel(stringResource(R.string.sheet_group_manage))
+            Row(Modifier.fillMaxWidth()) {
                 SheetAction(
-                    icon = Icons.Outlined.DriveFileRenameOutline,
-                    label = stringResource(
-                        if (multiple) R.string.action_bulk_rename else R.string.action_rename,
-                    ),
+                    icon = Icons.Outlined.ContentCopy,
+                    label = stringResource(R.string.action_copy),
                     onClick = {
-                        if (multiple) onBulkRename() else onRename()
+                        onCopy()
                         onDismiss()
                     },
+                    modifier = Modifier.weight(1f),
                 )
                 SheetAction(
-                    icon = Icons.Outlined.Delete,
-                    label = stringResource(R.string.action_delete),
-                    destructive = true,
+                    icon = Icons.Outlined.ContentCut,
+                    label = stringResource(R.string.action_move),
+                    enabled = canWrite,
                     onClick = {
-                        onDelete()
+                        onCut()
                         onDismiss()
                     },
+                    modifier = Modifier.weight(1f),
                 )
             }
+            SheetAction(
+                icon = Icons.Outlined.DriveFileRenameOutline,
+                label = stringResource(
+                    if (multiple) R.string.action_bulk_rename else R.string.action_rename,
+                ),
+                enabled = canWrite,
+                onClick = {
+                    if (multiple) onBulkRename() else onRename()
+                    onDismiss()
+                },
+            )
+            SheetAction(
+                icon = Icons.Outlined.Delete,
+                label = stringResource(R.string.action_delete),
+                destructive = true,
+                enabled = canWrite,
+                onClick = {
+                    onDelete()
+                    onDismiss()
+                },
+            )
 
             // ---- organise --------------------------------------------------
             SheetDivider()
@@ -441,15 +444,16 @@ fun ItemActionsSheet(
                     onDismiss()
                 },
             )
+            SheetAction(
+                icon = Icons.Outlined.FolderZip,
+                label = stringResource(R.string.action_zip),
+                enabled = canWrite,
+                onClick = {
+                    onZip()
+                    onDismiss()
+                },
+            )
             if (canWrite) {
-                SheetAction(
-                    icon = Icons.Outlined.FolderZip,
-                    label = stringResource(R.string.action_zip),
-                    onClick = {
-                        onZip()
-                        onDismiss()
-                    },
-                )
                 if (onlyArchives) {
                     SheetAction(
                         icon = Icons.Outlined.Unarchive,

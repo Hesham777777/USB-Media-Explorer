@@ -11,6 +11,7 @@
     <string name="action_move">نقل</string>
     <string name="action_delete">حذف</string>
     <string name="action_rename">إعادة تسمية</string>
+    <string name="action_rename_short">تسمية</string>
     <string name="action_details">التفاصيل</string>
     <string name="action_favorite">إضافة إلى المفضلة</string>
     <string name="action_unfavorite">إزالة من المفضلة</string>
@@ -23,17 +24,20 @@
     <string name="action_select_all">تحديد الكل</string>
     <string name="action_invert_selection">عكس التحديد</string>
     <string name="action_new_folder">مجلد جديد</string>
+    <string name="action_new_folder_short">مجلد</string>
     <string name="action_new_file">ملف جديد</string>
     <string name="action_zip">ضغط (ZIP)</string>
     <string name="action_unzip">استخراج هنا</string>
     <string name="action_bulk_rename">إعادة تسمية جماعية</string>
+    <string name="action_bulk_rename_short">تسمية الكل</string>
     <string name="action_search">بحث</string>
     <string name="action_sort">فرز</string>
     <string name="action_view_mode">طريقة العرض</string>
     <string name="action_settings">الإعدادات</string>
     <string name="action_refresh">تحديث</string>
-    <string name="action_grant_access">منح صلاحية الوصول</string>
+    <string name="action_grant_access">منح الوصول</string>
     <string name="action_more">خيارات إضافية</string>
+    <string name="action_more_short">المزيد</string>
     <string name="action_back">رجوع</string>
     <string name="action_resume">استئناف</string>
     <string name="action_start_over">من البداية</string>
@@ -82,6 +86,7 @@
     <string name="sort_duration">المدة</string>
     <string name="sort_folders_first">المجلدات أولًا</string>
     <string name="view_mode">طريقة العرض</string>
+    <string name="view_mode_short">العرض</string>
     <string name="view_list">قائمة</string>
     <string name="view_grid_small">شبكة صغيرة</string>
     <string name="view_grid_medium">شبكة متوسطة</string>
@@ -201,6 +206,8 @@
     <string name="setting_image_thumbs_desc">عرض الصورة نفسها بدلًا من أيقونة</string>
     <string name="setting_folder_covers">أغلفة المجلدات</string>
     <string name="setting_folder_covers_desc">استخدام صورة باسم poster أو folder أو cover داخل المجلد كغلاف له في عرض الشبكة، ولا تستخدم أي صورة أخرى</string>
+    <string name="setting_audio_art">أغلفة الموسيقى</string>
+    <string name="setting_audio_art_desc">عرض الصورة المخزّنة داخل ملف الصوت نفسه، وتُقرأ من الملف ولا تُنزَّل من الإنترنت</string>
     <string name="setting_thumb_size">حجم المعاينة</string>
     <string name="setting_thumb_quality">جودة المعاينة</string>
     <string name="setting_frame_position">الإطار المستخدم للمعاينة</string>
@@ -279,6 +286,7 @@
     <string name="volume_remove_grant">إزالة صلاحية الوصول</string>
     <string name="volume_used_of_total">%1$s من %2$s</string>
     <string name="volume_free_space">متوفر %1$s</string>
+    <string name="volume_capacity_short">السعة %1$s</string>
     <string name="volume_used_label">المستخدم</string>
     <string name="volume_free_label">الحر</string>
     <string name="volume_details_group">الوحدة</string>
@@ -296,7 +304,7 @@
     <string name="home_volumes_summary">%1$d وحدات • %2$s حرة</string>
     <string name="home_volumes_summary_one">وحدة واحدة • %1$s حرة</string>
     <string name="recent_folders_window">آخر ساعتين</string>
-    <string name="quick_transfers">عمليات النقل</string>
+    <string name="quick_transfers">النقل</string>
     <string name="quick_all_folders">كل المجلدات</string>
     <!-- إعادة التصميم: أول تشغيل -->
     <string name="onboarding_title">جهّز الوصول مرة واحدة</string>
@@ -442,6 +450,7 @@
     <string name="cache_kind_video">مصغرات الفيديو</string>
     <string name="cache_kind_image">معاينات الصور</string>
     <string name="cache_kind_cover">أغلفة المجلدات</string>
+    <string name="cache_kind_audio">أغلفة الموسيقى</string>
     <string name="cache_kind_other">معاينات أخرى</string>
     <string name="cache_kind_detail">%1$d عنصر • %2$s</string>
     <!-- إعادة التصميم: عوامل تصفية البحث -->

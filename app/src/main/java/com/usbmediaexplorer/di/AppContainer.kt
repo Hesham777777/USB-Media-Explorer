@@ -74,6 +74,12 @@ class AppContainer(private val context: Context) {
     val imageThumbExtractor: ImageThumbExtractor by lazy {
         ImageThumbExtractor(context, docRepository)
     }
+
+    /** Album art embedded in audio files — read from the track itself, never downloaded. */
+    val audioArtExtractor: AudioArtExtractor by lazy {
+        AudioArtExtractor(context, docRepository)
+    }
+
     /** Folder Cover: which image inside a folder represents that folder (poster priority). */
     val folderCoverExtractor: FolderCoverExtractor by lazy {
         FolderCoverExtractor(docRepository, imageThumbExtractor)
@@ -85,6 +91,7 @@ class AppContainer(private val context: Context) {
             cache = thumbnailCache,
             videoExtractor = videoFrameExtractor,
             imageExtractor = imageThumbExtractor,
+            audioArtExtractor = audioArtExtractor,
             folderCoverExtractor = folderCoverExtractor,
             metadataRepository = metadataRepository,
             settingsRepository = settingsRepository,

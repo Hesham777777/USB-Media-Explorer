@@ -23,6 +23,7 @@ import com.usbmediaexplorer.data.store.FavoriteEntry
 import com.usbmediaexplorer.data.store.FolderPrefs
 import com.usbmediaexplorer.data.store.PlaybackPosition
 import com.usbmediaexplorer.data.store.RecentEntry
+import com.usbmediaexplorer.data.volume.GrantKind
 import com.usbmediaexplorer.data.volume.VolumeInfo
 import com.usbmediaexplorer.di.AppContainer
 import kotlinx.coroutines.Dispatchers
@@ -36,7 +37,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -134,6 +139,10 @@ class BrowseViewModel(
     private companion object {
         /** How long "select folder content" waits for the folder to appear before giving up. */
         const val SELECT_ON_LOAD_TIMEOUT_MS = 4_000L
+
+        /** How long typing must pause before a match pass runs: instant to the eye, cheap on a
+         *  folder of thousands of files. */
+        const val QUERY_DEBOUNCE_MS = 140L
     }
 
     private val context: Context = container.appContext
@@ -213,12 +222,19 @@ class BrowseViewModel(
         val selection: Set<String>,
         val selecting: Boolean,
         val query: String,
+        /** [query] after a short pause: matching runs once per pause, not once per keystroke. */
+        val matchQuery: String,
         val filter: KindFilter,
     )
 
+    private val debouncedQuery = query
+        .debounce(QUERY_DEBOUNCE_MS)
+        .distinctUntilChanged()
+
     private val selectionState: kotlinx.coroutines.flow.Flow<Controls> =
-        combine(selection, selecting, query, kindFilter) { sel, isSelecting, q, kf ->
-            Controls(sel, isSelecting, q, kf)
+        combine(selection, selecting, query, debouncedQuery, kindFilter) {
+                sel, isSelecting, q, matchQ, kf ->
+            Controls(sel, isSelecting, q, matchQ, kf)
         }
 
     private val items: kotlinx.coroutines.flow.Flow<List<DocItem>> = combine(
@@ -240,62 +256,104 @@ class BrowseViewModel(
         }
     }
 
-    val state: StateFlow<BrowseUiState> = combine(
-        items,
-        presentation,
-        selectionState,
-        core,
-        opsManager.clipboard,
-    ) { itemList, pres, ctrl, coreState, clipboard ->
+    /**
+     * The folder, ready to be shown: hidden files dropped, tallies computed, order applied and
+     * items indexed by key.
+     *
+     * This is the expensive stage, so it depends only on what can actually change it — the
+     * contents, their metadata and the presentation settings. Typing in the search field, tapping
+     * a filter chip or toggling a selection no longer re-sorts or re-indexes a 5 000-file folder;
+     * those only run the cheap pass in [state].
+     */
+    private data class Prepared(
+        val pres: Presentation,
+        val sorted: List<DocItem>,
+        val counts: MediaCount,
+        val totalSize: Long,
+        val sortMode: SortMode,
+        val viewMode: ViewMode,
+    )
+
+    private val prepared: kotlinx.coroutines.flow.Flow<Prepared> = combine(items, presentation) {
+            itemList, pres ->
         val settings = pres.settings
-        val prefs = pres.prefs
         val visible = itemList.filter { settings.showHiddenFiles || !it.node.isHidden }
         val counts = mediaCountOf(visible.map { it.node })
         val totalSize = visible.sumOf { if (it.node.isDirectory) 0L else it.node.size.coerceAtLeast(0L) }
-        // Instant, in-memory filtering: the same list the user is already looking at (spec §10).
-        val needle = ctrl.query.trim()
-        val matched = visible.filter { item ->
-            ctrl.filter.matches(item.node) &&
-                (needle.isEmpty() || item.node.name.contains(needle, ignoreCase = true))
-        }
         val sortMode = if (settings.rememberPerFolderView) {
-            prefs.sortMode ?: settings.defaultSortMode
+            pres.prefs.sortMode ?: settings.defaultSortMode
         } else {
             settings.defaultSortMode
         }
         val viewMode = if (settings.rememberPerFolderView) {
-            prefs.viewMode ?: autoViewMode(counts, settings)
+            pres.prefs.viewMode ?: autoViewMode(counts, settings)
         } else {
             autoViewMode(counts, settings)
         }
-        val sortedNodes = DocSorter.sort(
-            nodes = matched.map { it.node },
-            mode = sortMode,
-            foldersFirst = settings.foldersFirst,
-            metadata = { node -> metadataRepository.peek(node) },
+        val byKey = visible.associateBy { it.node.key }
+        val sorted = DocSorter
+            .sort(
+                nodes = visible.map { it.node },
+                mode = sortMode,
+                foldersFirst = settings.foldersFirst,
+                metadata = { node -> metadataRepository.peek(node) },
+            )
+            .mapNotNull { byKey[it.key] }
+        Prepared(
+            pres = pres,
+            sorted = sorted,
+            counts = counts,
+            totalSize = totalSize,
+            sortMode = sortMode,
+            viewMode = viewMode,
         )
-        val byKey = itemList.associateBy { it.node.key }
+    }
+        // Metadata arrives one file at a time, so opening a folder of 400 videos would otherwise
+        // re-tally and re-sort 400 times — on the main thread, where every pass costs frames.
+        // Conflate drops the intermediate snapshots and flowOn moves the work off the UI thread;
+        // the first value still passes straight through, so nothing is delayed on screen.
+        .conflate()
+        .flowOn(Dispatchers.Default)
+
+    val state: StateFlow<BrowseUiState> = combine(
+        prepared,
+        selectionState,
+        core,
+        opsManager.clipboard,
+    ) { prep, ctrl, coreState, clipboard ->
+        val settings = prep.pres.settings
+        // Instant, in-memory filtering of a list that is already in order (spec §10): filtering
+        // keeps the sort, so a keystroke costs one pass over names and nothing else.
+        val needle = ctrl.matchQuery.trim()
+        val shown = if (needle.isEmpty() && ctrl.filter == KindFilter.ALL) {
+            prep.sorted
+        } else {
+            prep.sorted.filter { item ->
+                ctrl.filter.matches(item.node) &&
+                    (needle.isEmpty() || item.node.name.contains(needle, ignoreCase = true))
+            }
+        }
         BrowseUiState(
             node = coreState.node,
             breadcrumb = coreState.breadcrumb,
-            items = sortedNodes.mapNotNull { byKey[it.key] },
+            items = shown,
             loading = coreState.loading,
             error = coreState.error,
-            viewMode = viewMode,
-            sortMode = sortMode,
+            viewMode = prep.viewMode,
+            sortMode = prep.sortMode,
             foldersFirst = settings.foldersFirst,
             selection = ctrl.selection,
             selecting = ctrl.selecting,
-            mediaCount = counts,
+            mediaCount = prep.counts,
             volume = coreState.volume,
             clipboardCount = clipboard?.items?.size ?: 0,
             clipboardIsCut = clipboard?.isCut == true,
-            canWrite = coreState.node?.isWritable == true && coreState.node.isDirectory,
+            canWrite = writableFolder(coreState),
             showHidden = settings.showHiddenFiles,
             query = ctrl.query,
             kindFilter = ctrl.filter,
-            totalCount = visible.size,
-            totalSize = totalSize,
+            totalCount = prep.sorted.size,
+            totalSize = prep.totalSize,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BrowseUiState())
 
@@ -778,6 +836,22 @@ class BrowseViewModel(
      * readable; a folder made of movie folders wants the user's grid so its covers line up as a
      * poster grid; a folder with nothing visual falls back to the list.
      */
+    /**
+     * Can the browser create, rename and delete inside the folder it is showing?
+     *
+     * The document flag alone is not enough: SAF providers routinely omit `FLAG_SUPPORTS_WRITE`
+     * on directories, which used to grey out every write action on a USB stick the user had
+     * already granted read-write. A granted tree is writable by definition — the grant is taken
+     * with both read and write flags.
+     */
+    private fun writableFolder(core: Core): Boolean {
+        val node = core.node ?: return false
+        if (!node.isDirectory) return false
+        if (node.isWritable) return true
+        val volume = core.volume ?: return false
+        return volume.grantKind == GrantKind.SAF_TREE && volume.isReady
+    }
+
     private fun autoViewMode(counts: MediaCount, settings: AppSettings): ViewMode = when {
         counts.videos > 0 -> ViewMode.GRID_LARGE
         counts.images > 0 && counts.mediaTotal >= 6 -> ViewMode.GRID_MEDIUM

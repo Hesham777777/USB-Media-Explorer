@@ -81,6 +81,8 @@ data class AppSettings(
     val imageThumbnailsEnabled: Boolean = true,
     /** Use a poster image found inside a folder as that folder's cover in grid views. */
     val folderCoversEnabled: Boolean = true,
+    /** Read the album art embedded in audio files and show it as the track's cover. */
+    val audioArtEnabled: Boolean = true,
     /** How many children of a folder are inspected while looking for its cover image. */
     val folderCoverScanLimit: Int = 24,
     val thumbSize: ThumbSize = ThumbSize.LARGE,

@@ -105,7 +105,6 @@ fun DocItemsView(
                     onLongPress = { onLongPress(item) },
                     onToggleSelect = { onToggleSelect(item) },
                     onMore = { onMore(item) },
-                    modifier = Modifier.animateItem(),
                 )
             }
         }
@@ -132,7 +131,6 @@ fun DocItemsView(
                 onOpen = { onOpen(item) },
                 onLongPress = { onLongPress(item) },
                 onToggleSelect = { onToggleSelect(item) },
-                modifier = Modifier.animateItem(),
             )
         }
     }

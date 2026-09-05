@@ -243,6 +243,9 @@ class ThumbnailCache(
         const val KIND_VIDEO = "video"
         const val KIND_IMAGE = "image"
         const val KIND_COVER = "cover"
+
+        /** Embedded artwork read out of audio files. */
+        const val KIND_AUDIO = "audio"
         const val KIND_OTHER = "other"
 
         private const val DIR_NAME = "thumbs"

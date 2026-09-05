@@ -261,32 +261,31 @@ private fun CompactSpace(volume: VolumeInfo, stateColor: Color, mounted: Boolean
     val free = volume.freeBytes ?: 0L
     Row(verticalAlignment = Alignment.CenterVertically) {
         if (mounted && total > 0) {
+            // Two cards share a row on a phone, so the content column is barely 88dp wide:
+            // the ring is small and each line carries one number that actually fits.
             UsageRing(
                 fraction = volume.progress,
-                size = 44.dp,
-                stroke = 5.dp,
+                size = 40.dp,
+                stroke = 4.dp,
                 centerLabel = "${Formatters.percent(total - free, total)}%",
             )
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(
-                        R.string.volume_used_of_total,
-                        Formatters.size(total - free),
-                        Formatters.size(total),
-                    ).bidiLtr(),
+                    text = stringResource(R.string.volume_free_space, Formatters.size(free)).bidiLtr(),
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = stateColor,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(Modifier.height(1.dp))
                 Text(
-                    text = stringResource(R.string.volume_free_space, Formatters.size(free)).bidiLtr(),
+                    text = stringResource(R.string.volume_capacity_short, Formatters.size(total)).bidiLtr(),
                     style = MaterialTheme.typography.labelSmall,
-                    color = stateColor,
-                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         } else {

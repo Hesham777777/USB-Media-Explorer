@@ -27,6 +27,38 @@ class FormattersTest {
     }
 
     @Test
+    fun `durations pad every field that needs it`() {
+        // The formatter is hand rolled for speed, so the padding boundaries are pinned here:
+        // a missing zero reads as a different length ("4:18" vs "4:8").
+        assertEquals("0:05", Formatters.duration(5_000))
+        assertEquals("0:59", Formatters.duration(59_000))
+        assertEquals("1:00", Formatters.duration(60_000))
+        assertEquals("10:00", Formatters.duration(600_000))
+        assertEquals("59:59", Formatters.duration(3_599_000))
+        assertEquals("1:00:00", Formatters.duration(3_600_000))
+        assertEquals("1:00:05", Formatters.duration(3_605_000))
+        assertEquals("1:09:05", Formatters.duration(((3600) + (9 * 60) + 5) * 1000L))
+        assertEquals("12:34:56", Formatters.duration(((12 * 3600) + (34 * 60) + 56) * 1000L))
+    }
+
+    @Test
+    fun `sizes keep locale grouping and the decimal rule`() {
+        // Grouping separators and the "two decimals below ten" rule must survive the switch from
+        // String.format to a cached DecimalFormat.
+        assertEquals("5.00 GB", Formatters.size(5L * 1024 * 1024 * 1024, Locale.US))
+        assertEquals("15.0 GB", Formatters.size(15L * 1024 * 1024 * 1024, Locale.US))
+        assertEquals("1,000 MB", Formatters.size(1000L * 1024 * 1024, Locale.US))
+        assertEquals("900 MB", Formatters.size(900L * 1024 * 1024, Locale.US))
+    }
+
+    @Test
+    fun `sizes stay locale aware without throwing`() {
+        // The Arabic UI must not lose its translated units when formatters are cached per locale.
+        assertTrue(Formatters.size(1024, Locale("ar")).endsWith("ك.ب"))
+        assertTrue(Formatters.size(1024L * 1024 * 1024, Locale("ar")).endsWith("ج.ب"))
+    }
+
+    @Test
     fun `resolution labels match marketing names`() {
         assertEquals("1080p", Formatters.resolution(1920, 1080))
         assertEquals("720p", Formatters.resolution(1280, 720))

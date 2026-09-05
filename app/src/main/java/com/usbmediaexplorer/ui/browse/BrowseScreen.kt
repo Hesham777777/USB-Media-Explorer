@@ -72,6 +72,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -100,7 +101,6 @@ import com.usbmediaexplorer.ui.common.SkeletonTiles
 import com.usbmediaexplorer.ui.common.StateBlock
 import com.usbmediaexplorer.ui.common.TextInputDialog
 import com.usbmediaexplorer.ui.common.ToolAction
-import com.usbmediaexplorer.ui.common.ToolSeparator
 import com.usbmediaexplorer.ui.common.bidiName
 import com.usbmediaexplorer.ui.common.viewModelFactory
 import com.usbmediaexplorer.ui.nav.LocalNavigator
@@ -276,13 +276,6 @@ fun BrowseScreen(
                             Icon(
                                 Icons.Outlined.Sort,
                                 contentDescription = stringResource(R.string.action_sort),
-                            )
-                        }
-                        // One tap cycles the density; the overflow menu opens the full picker.
-                        IconButton(onClick = { viewModel.cycleViewMode() }) {
-                            Icon(
-                                iconForCurrentViewMode(state.viewMode),
-                                contentDescription = stringResource(R.string.view_mode),
                             )
                         }
                         Box {
@@ -536,6 +529,11 @@ fun BrowseScreen(
                             modifier = Modifier.weight(1f),
                         )
                         ToolAction(
+                            icon = iconForCurrentViewMode(state.viewMode),
+                            label = stringResource(R.string.view_mode_short),
+                            onClick = { viewModel.cycleViewMode() },
+                        )
+                        ToolAction(
                             icon = Icons.Outlined.SelectAll,
                             label = stringResource(R.string.action_select),
                             onClick = {
@@ -545,7 +543,7 @@ fun BrowseScreen(
                         )
                         ToolAction(
                             icon = Icons.Outlined.CreateNewFolder,
-                            label = stringResource(R.string.action_new_folder),
+                            label = stringResource(R.string.action_new_folder_short),
                             onClick = { showNewFolder = true },
                             enabled = state.canWrite,
                         )
@@ -932,14 +930,17 @@ private fun FilterChips(
                         maxLines = 1,
                     )
                 },
+                // Unselected chips keep a readable label and a visible edge: a control that
+                // looks greyed out reads as unavailable, not as "not picked yet".
                 colors = FilterChipDefaults.filterChipColors(
+                    labelColor = MaterialTheme.colorScheme.onSurface,
                     selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                     selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 ),
                 border = FilterChipDefaults.filterChipBorder(
                     enabled = true,
                     selected = filter == current,
-                    borderColor = MaterialTheme.colorScheme.outlineVariant,
+                    borderColor = MaterialTheme.colorScheme.outline,
                     selectedBorderColor = MaterialTheme.colorScheme.primary,
                 ),
             )
@@ -989,11 +990,12 @@ private fun SelectionActionBar(
                 .padding(horizontal = AppSpacing.xs, vertical = AppSpacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // Copy only needs a writable *destination*, which is chosen after paste, so it
+            // stays live even when the current volume is read-only.
             ToolAction(
                 icon = Icons.Outlined.ContentCopy,
                 label = stringResource(R.string.action_copy),
                 onClick = onCopy,
-                enabled = canWrite,
                 modifier = Modifier.weight(1f),
             )
             ToolAction(
@@ -1012,7 +1014,7 @@ private fun SelectionActionBar(
             ToolAction(
                 icon = Icons.Outlined.DriveFileRenameOutline,
                 label = stringResource(
-                    if (singleSelected) R.string.action_rename else R.string.action_bulk_rename,
+                    if (singleSelected) R.string.action_rename_short else R.string.action_bulk_rename_short,
                 ),
                 onClick = onRename,
                 enabled = canWrite,
@@ -1026,11 +1028,10 @@ private fun SelectionActionBar(
                 destructive = true,
                 modifier = Modifier.weight(1f),
             )
-            ToolSeparator()
             Box(Modifier.weight(1f)) {
                 ToolAction(
                     icon = Icons.Outlined.MoreVert,
-                    label = stringResource(R.string.action_more),
+                    label = stringResource(R.string.action_more_short),
                     onClick = onMoreOpen,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -1136,20 +1137,25 @@ private fun ClipboardBar(
 @Composable
 private fun summaryLine(state: BrowseUiState): String {
     val counts = state.mediaCount
-    val parts = ArrayList<String>(4)
+    // A phone header shares its row with three actions, so the subtitle has room for two facts;
+    // the full breakdown is in the folder details sheet. Tablets and landscape keep it all.
+    val roomy = LocalConfiguration.current.screenWidthDp >= 600
+    val parts = ArrayList<String>(if (roomy) 5 else 2)
     if (state.isFiltered) {
         parts += stringResource(R.string.browse_filtered_count, state.items.size, state.totalCount)
     } else {
         parts += stringResource(R.string.items_count, state.totalCount)
-        if (counts.videos > 0) parts += stringResource(R.string.videos_count, counts.videos)
-        if (counts.images > 0) parts += stringResource(R.string.photos_count, counts.images)
-        if (parts.size < 3 && counts.folders > 0) {
-            parts += stringResource(R.string.folders_count, counts.folders)
+        if (roomy) {
+            if (counts.videos > 0) parts += stringResource(R.string.videos_count, counts.videos)
+            if (counts.images > 0) parts += stringResource(R.string.photos_count, counts.images)
+            if (parts.size < 3 && counts.folders > 0) {
+                parts += stringResource(R.string.folders_count, counts.folders)
+            }
         }
     }
     if (state.totalSize > 0) parts += Formatters.size(state.totalSize)
     val volume = state.volume
-    if (volume?.freeBytes != null && volume.totalBytes != null) {
+    if (roomy && volume?.freeBytes != null && volume.totalBytes != null) {
         parts += stringResource(
             R.string.volume_free_of,
             Formatters.size(volume.freeBytes ?: 0),

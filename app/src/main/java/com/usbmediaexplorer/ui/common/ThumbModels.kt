@@ -35,6 +35,8 @@ fun rememberThumbRequest(
         MediaKind.VIDEO -> settings.videoThumbnailsEnabled
         MediaKind.IMAGE -> settings.imageThumbnailsEnabled
         MediaKind.DIRECTORY -> settings.folderCoversEnabled
+        // Album art embedded in the track (ID3/covr/FLAC picture) — never downloaded.
+        MediaKind.AUDIO -> settings.audioArtEnabled
         else -> false
     }
     if (!enabled) return null
@@ -42,6 +44,7 @@ fun rememberThumbRequest(
     return remember(
         node.key, settings.thumbSize, settings.thumbQuality, settings.frameStrategy,
         settings.folderCoversEnabled, settings.folderCoverScanLimit, settings.preferEmbeddedCover,
+        settings.audioArtEnabled,
     ) {
         ThumbRequest(
             node = node,

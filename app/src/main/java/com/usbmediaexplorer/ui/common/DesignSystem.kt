@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -623,7 +624,7 @@ fun SheetAction(
     val tint = when {
         !enabled -> MaterialTheme.colorScheme.outlineVariant
         destructive -> MaterialTheme.colorScheme.error
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
+        else -> MaterialTheme.colorScheme.onSurface
     }
     val contentColor = when {
         !enabled -> MaterialTheme.colorScheme.outlineVariant
@@ -675,7 +676,15 @@ fun ToolAction(
     active: Boolean = false,
     destructive: Boolean = false,
 ) {
+    // An enabled tool must read as "on". A muted tint is indistinguishable from the
+    // disabled one, which made every action in the browse toolbar look inactive.
     val tint = when {
+        !enabled -> MaterialTheme.colorScheme.outlineVariant
+        destructive -> MaterialTheme.colorScheme.error
+        active -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+    val labelColor = when {
         !enabled -> MaterialTheme.colorScheme.outlineVariant
         destructive -> MaterialTheme.colorScheme.error
         active -> MaterialTheme.colorScheme.primary
@@ -683,10 +692,10 @@ fun ToolAction(
     }
     Column(
         modifier = modifier
+            .defaultMinSize(minWidth = 44.dp, minHeight = 44.dp)
             .clip(RoundedCornerShape(AppRadius.sm))
             .combinedClickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = AppSpacing.sm, vertical = AppSpacing.xs)
-            .width(58.dp),
+            .padding(horizontal = AppSpacing.xxs, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(20.dp))
@@ -694,7 +703,7 @@ fun ToolAction(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = tint,
+            color = labelColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,

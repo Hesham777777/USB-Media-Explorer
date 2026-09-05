@@ -291,6 +291,12 @@ fun SettingsScreen(snackbarHostState: SnackbarHostState) {
                     onChange = { scope.launch { container.settingsRepository.setFolderCovers(it) } },
                 )
                 SwitchRow(
+                    title = stringResource(R.string.setting_audio_art),
+                    subtitle = stringResource(R.string.setting_audio_art_desc),
+                    checked = settings.audioArtEnabled,
+                    onChange = { scope.launch { container.settingsRepository.setAudioArt(it) } },
+                )
+                SwitchRow(
                     title = stringResource(R.string.setting_prefer_embedded_cover),
                     subtitle = stringResource(R.string.setting_prefer_embedded_cover_desc),
                     checked = settings.preferEmbeddedCover,
@@ -693,6 +699,7 @@ private enum class CacheKind(val key: String, val labelRes: Int) {
     VIDEO(ThumbnailCache.KIND_VIDEO, R.string.cache_kind_video),
     IMAGE(ThumbnailCache.KIND_IMAGE, R.string.cache_kind_image),
     COVER(ThumbnailCache.KIND_COVER, R.string.cache_kind_cover),
+    AUDIO(ThumbnailCache.KIND_AUDIO, R.string.cache_kind_audio),
     OTHER(ThumbnailCache.KIND_OTHER, R.string.cache_kind_other),
 }
 

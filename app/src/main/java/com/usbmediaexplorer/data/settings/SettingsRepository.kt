@@ -26,6 +26,7 @@ class SettingsRepository(private val context: Context) {
         // Same stored keys as before (saved user choices survive the upgrade), new meaning:
         // "folder previews" is now the Folder Cover feature.
         val FOLDER_COVERS = booleanPreferencesKey("folder_previews")
+        val AUDIO_ART = booleanPreferencesKey("audio_art")
         val FOLDER_COVER_SCAN = intPreferencesKey("folder_preview_count")
         val THUMB_SIZE = stringPreferencesKey("thumb_size")
         val THUMB_QUALITY = intPreferencesKey("thumb_quality")
@@ -71,6 +72,8 @@ class SettingsRepository(private val context: Context) {
     suspend fun setImageThumbnails(value: Boolean) = set(Keys.IMAGE_THUMBS, value)
     suspend fun setFolderCovers(value: Boolean) = set(Keys.FOLDER_COVERS, value)
 
+    suspend fun setAudioArt(value: Boolean) = set(Keys.AUDIO_ART, value)
+
     suspend fun setFolderCoverScanLimit(value: Int) =
         set(Keys.FOLDER_COVER_SCAN, value.coerceIn(4, 64))
     suspend fun setThumbSize(value: ThumbSize) = set(Keys.THUMB_SIZE, value.name)
@@ -106,6 +109,7 @@ class SettingsRepository(private val context: Context) {
         videoThumbnailsEnabled = this[Keys.VIDEO_THUMBS] ?: true,
         imageThumbnailsEnabled = this[Keys.IMAGE_THUMBS] ?: true,
         folderCoversEnabled = this[Keys.FOLDER_COVERS] ?: true,
+        audioArtEnabled = this[Keys.AUDIO_ART] ?: true,
         folderCoverScanLimit = (this[Keys.FOLDER_COVER_SCAN] ?: 24).coerceIn(4, 64),
         thumbSize = enumOrDefault(this[Keys.THUMB_SIZE], ThumbSize.LARGE),
         thumbQuality = (this[Keys.THUMB_QUALITY] ?: 82).coerceIn(30, 100),
@@ -139,6 +143,7 @@ class SettingsRepository(private val context: Context) {
         this[Keys.VIDEO_THUMBS] = settings.videoThumbnailsEnabled
         this[Keys.IMAGE_THUMBS] = settings.imageThumbnailsEnabled
         this[Keys.FOLDER_COVERS] = settings.folderCoversEnabled
+        this[Keys.AUDIO_ART] = settings.audioArtEnabled
         this[Keys.FOLDER_COVER_SCAN] = settings.folderCoverScanLimit
         this[Keys.THUMB_SIZE] = settings.thumbSize.name
         this[Keys.THUMB_QUALITY] = settings.thumbQuality

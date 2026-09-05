@@ -40,6 +40,7 @@ class ThumbnailRepository(
     private val cache: ThumbnailCache,
     private val videoExtractor: VideoFrameExtractor,
     private val imageExtractor: ImageThumbExtractor,
+    private val audioArtExtractor: AudioArtExtractor,
     private val folderCoverExtractor: FolderCoverExtractor,
     private val metadataRepository: MetadataRepository,
     private val settingsRepository: SettingsRepository,
@@ -109,10 +110,10 @@ class ThumbnailRepository(
                 maybePrune(s.cacheLimitBytes)
                 return@withLock bytes
             }
-            if (request.folderCover) {
-                // Negative cache. A folder with no image inside must not be rescanned on every
-                // scroll pass or every return to the screen — that is what keeps navigation
-                // smooth on a slow USB stick.
+            if (request.folderCover || kind == MediaKind.AUDIO) {
+                // Negative cache. A folder with no image inside — and a track with no embedded
+                // art — must not be rescanned on every scroll pass or every return to the
+                // screen; that is what keeps navigation smooth on a slow USB stick.
                 cache.put(request.cacheKey, request.nodeKey, NO_COVER, request.cacheKind)
                 cache.schedulePersist()
             }
@@ -154,6 +155,10 @@ class ThumbnailRepository(
             }
 
             kind == MediaKind.IMAGE -> imageExtractor.extract(request)
+
+            // Album art that lives inside the file itself (ID3 APIC / covr / FLAC picture block).
+            kind == MediaKind.AUDIO -> audioArtExtractor.extract(request)
+
             else -> null
         }
     }
@@ -161,6 +166,7 @@ class ThumbnailRepository(
     private fun isPreviewAllowed(kind: MediaKind, s: AppSettings): Boolean = when (kind) {
         MediaKind.VIDEO -> s.videoThumbnailsEnabled
         MediaKind.IMAGE -> s.imageThumbnailsEnabled
+        MediaKind.AUDIO -> s.audioArtEnabled
         MediaKind.DIRECTORY -> s.folderCoversEnabled
         else -> false
     }
