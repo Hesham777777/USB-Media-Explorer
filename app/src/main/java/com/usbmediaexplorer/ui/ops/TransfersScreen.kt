@@ -44,6 +44,7 @@ import com.usbmediaexplorer.R
 import com.usbmediaexplorer.data.ops.JobProgress
 import com.usbmediaexplorer.data.ops.JobState
 import com.usbmediaexplorer.ui.common.LocalAppContainer
+import com.usbmediaexplorer.ui.common.StateBlock
 import com.usbmediaexplorer.ui.nav.LocalNavigator
 import com.usbmediaexplorer.util.Formatters
 
@@ -88,20 +89,11 @@ fun TransfersScreen() {
                     .padding(padding),
                 contentAlignment = Alignment.Center,
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Outlined.SwapHoriz,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        text = stringResource(R.string.ops_no_jobs),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                StateBlock(
+                    icon = Icons.Outlined.SwapHoriz,
+                    title = stringResource(R.string.ops_no_jobs),
+                    body = stringResource(R.string.ops_no_jobs_body),
+                )
             }
             return@Scaffold
         }

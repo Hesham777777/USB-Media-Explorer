@@ -437,4 +437,5 @@
     <string name="search_matches_count">%1$d matches</string>
     <string name="search_start_body">Type a name, or pick a filter: movies and series are found by the poster inside their folder.</string>
     <string name="search_no_results_body">Try a shorter name, or clear the filters to search everything again.</string>
+    <string name="ops_no_jobs_body">Copy, move, delete, compress and extract operations show their progress here while they run.</string>
 </resources>

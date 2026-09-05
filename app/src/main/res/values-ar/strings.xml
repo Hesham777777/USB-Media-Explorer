@@ -436,4 +436,5 @@
     <string name="search_matches_count">%1$d نتيجة مطابقة</string>
     <string name="search_start_body">اكتب اسمًا أو اختر عامل تصفية: الأفلام والمسلسلات تُكتشف من الملصق الموجود داخل مجلدها.</string>
     <string name="search_no_results_body">جرّب اسمًا أقصر، أو امسح عوامل التصفية للبحث في كل شيء مرة أخرى.</string>
+    <string name="ops_no_jobs_body">عمليات النسخ والنقل والحذف والضغط وفك الضغط تعرض تقدّمها هنا أثناء تنفيذها.</string>
 </resources>

@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.usbmediaexplorer.R
 import com.usbmediaexplorer.data.doc.DocNode
+import com.usbmediaexplorer.ui.common.bidiName
 
 /**
  * Explorer-style path bar (spec §2). Horizontally scrollable and auto-scrolled to the deepest
@@ -59,7 +60,7 @@ fun BreadcrumbBar(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp),
             ) {
                 Text(
-                    text = node.name.ifEmpty { stringResource(R.string.breadcrumb_root) },
+                    text = node.name.ifEmpty { stringResource(R.string.breadcrumb_root) }.bidiName(),
                     style = MaterialTheme.typography.labelLarge,
                     color = if (isLast) {
                         MaterialTheme.colorScheme.primary
