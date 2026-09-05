@@ -67,11 +67,25 @@ object CoverNames {
         return NO_MATCH
     }
 
-    /** The words of a name, lowercased: `The.Matrix.poster` → `the`, `matrix`, `poster`. */
-    private fun wordsOf(value: String): List<String> = value
-        .split { !it.isLetterOrDigit() }
-        .filter { it.isNotEmpty() }
-        .map { it.lowercase() }
+    /**
+     * The words of a name, lowercased: `The.Matrix.poster` → `the`, `matrix`, `poster`. Anything
+     * that is not a letter or a digit separates words, which is why `discover` is one word and can
+     * never be mistaken for a `cover`.
+     */
+    private fun wordsOf(value: String): List<String> {
+        val words = ArrayList<String>()
+        val word = StringBuilder()
+        value.forEach { ch ->
+            if (ch.isLetterOrDigit()) {
+                word.append(ch.lowercaseChar())
+            } else if (word.isNotEmpty()) {
+                words.add(word.toString())
+                word.setLength(0)
+            }
+        }
+        if (word.isNotEmpty()) words.add(word.toString())
+        return words
+    }
 
     /** True when the file name alone makes this image a folder cover. */
     fun isCoverName(fileName: String): Boolean = tier(fileName) != NO_MATCH
