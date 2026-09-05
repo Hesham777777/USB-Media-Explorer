@@ -166,10 +166,29 @@ class VolumeRepository(
         val primaryTree = trees.firstOrNull { DocUri.isPrimaryStorage(it) }
         primaryTree?.let { consumedTrees += it.toString() }
 
+        // Could raw /storage/emulated/0 paths ever work here?
+        //  - up to Android 9: the classic model, the media permission is enough,
+        //  - Android 10: only in legacy mode — scoped storage hides everything otherwise, which is
+        //    exactly the trap where the user grants READ_EXTERNAL_STORAGE and "nothing changes",
+        //  - Android 11+: media files are reachable by path again with the media permission.
+        val rawPathsPossible = when {
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q -> true
+            Build.VERSION.SDK_INT == Build.VERSION_CODES.Q -> Environment.isExternalStorageLegacy()
+            else -> true
+        }
+
+        // Ground truth beats prediction: actually try to list the shared storage. When the
+        // permission is already granted we believe only this probe, so a device that refuses raw
+        // paths (Android 10 scoped storage, some OEM builds) never shows a "ready" volume that
+        // then lists nothing.
+        val listsNow = runCatching { internalDir.listFiles() }.getOrNull()?.isNotEmpty() == true
+        val rawPathsUsable = mediaAccess && listsNow
+        val runtimeGrantWillHelp = !mediaAccess && rawPathsPossible
+
         // NOTE: File.canRead() is not a permission check — on Android 10+ it answers true for
         // /storage/emulated/0 even with every permission denied, which used to show an "accessible"
         // internal storage that then listed nothing.
-        val internalState = if (mediaAccess || primaryTree != null) {
+        val internalState = if (rawPathsUsable || primaryTree != null) {
             VolumeState.READY
         } else {
             VolumeState.NEEDS_PERMISSION
@@ -179,12 +198,28 @@ class VolumeRepository(
             name = context.getString(R.string.volume_internal),
             kind = VolumeKind.INTERNAL,
             rootUri = when {
-                mediaAccess -> Uri.fromFile(internalDir)
+                rawPathsUsable -> Uri.fromFile(internalDir)
                 primaryTree != null -> primaryTree
                 else -> Uri.EMPTY
             },
             state = internalState,
-            grantKind = GrantKind.RUNTIME_MEDIA,
+            // A runtime permission can only unlock the internal storage where raw paths are
+            // allowed at all; where they are not (scoped-storage Android 10, or a granted
+            // permission that still lists nothing) the working route is one SAF grant instead.
+            grantKind = if (runtimeGrantWillHelp) GrantKind.RUNTIME_MEDIA else GrantKind.SAF_TREE,
+            grantIntent = if (!runtimeGrantWillHelp && internalState == VolumeState.NEEDS_PERMISSION) {
+                Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+                    addFlags(
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                            Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                            Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
+                    )
+                    // Opens the picker directly on the internal storage.
+                    putExtra("android.provider.extra.INITIAL_URI", Uri.fromFile(internalDir))
+                }
+            } else {
+                null
+            },
             isRemovable = false,
             uuid = "primary",
             totalBytes = internalStats?.totalBytes,

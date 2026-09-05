@@ -222,7 +222,13 @@ fun HomeScreen(snackbarHostState: SnackbarHostState) {
             }
 
             item(key = "volumes-header") {
-                SectionHeader(stringResource(R.string.section_volumes))
+                SectionHeader(
+                    title = stringResource(R.string.section_volumes),
+                    // One SAF grant per folder: the way to reach anything raw paths cannot on
+                    // scoped storage (Documents, Download, a USB stick, an SD card…).
+                    actionLabel = stringResource(R.string.action_add_folder),
+                    onAction = { treePicker.launch(null) },
+                )
             }
 
             items(state.volumes, key = { it.id }) { volume ->
@@ -275,13 +281,27 @@ fun HomeScreen(snackbarHostState: SnackbarHostState) {
 }
 
 @Composable
-private fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 4.dp),
-    )
+private fun SectionHeader(
+    title: String,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        if (actionLabel != null && onAction != null) {
+            TextButton(onClick = onAction) { Text(actionLabel) }
+        }
+    }
 }
 
 @Composable

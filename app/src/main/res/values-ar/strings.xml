@@ -159,6 +159,7 @@
     <string name="dialog_permission_body">اسمح بالوصول إلى الصور والفيديوهات والصوت لتصفّح التخزين الداخلي وإنشاء معاينات حقيقية. تُنشأ المعاينات بقراءة الملفات مباشرة ولا يتم نسخ أي شيء إلى ذاكرة الهاتف. أما الوحدات الخارجية (USB/OTG وSD) فتحتاج منحة واحدة لكل منها، ويطلبها أندرويد عند فتح الوحدة.</string>
     <string name="permission_blocked_body">لم يعد أندرويد يعرض نافذة الصلاحية لهذا التطبيق. افتح إعدادات التطبيق واسمح بالوصول إلى الصور والفيديوهات والصوت ثم عُد إلى هنا.</string>
     <string name="action_open_settings">فتح إعدادات التطبيق</string>
+    <string name="action_add_folder">إضافة مجلد</string>
     <string name="grant_not_persisted">الوصول يعمل لهذه الجلسة فقط: رفض أندرويد حفظ المنحة. أعد توصيل الوحدة ومنحها مرة أخرى إن اختفت بعد إعادة التشغيل.</string>
     <string name="dialog_resume_title">متابعة المشاهدة؟</string>
     <string name="dialog_resume_body">توقفت عند %1$s (متبقي %2$s).</string>
