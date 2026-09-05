@@ -309,6 +309,21 @@ class BrowseViewModel(
         currentNode.value?.let { load(it.uri.toString()) }
     }
 
+    /**
+     * A SAF tree granted from the error state: make it permanent when Android allows it, then open
+     * it — the folder the user was trying to reach is usually inside the granted tree.
+     */
+    fun onTreeGranted(uri: Uri?) {
+        if (uri == null) return
+        viewModelScope.launch {
+            if (!container.volumeRepository.persistTree(uri)) {
+                message(context.getString(R.string.grant_not_persisted))
+            }
+            container.volumeRepository.refresh()
+            load(uri.toString())
+        }
+    }
+
     /** Called when a card becomes visible: resolves info lazily instead of up front. */
     fun onItemVisible(node: DocNode) {
         if (node.isDirectory) {

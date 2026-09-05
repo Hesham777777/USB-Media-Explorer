@@ -2,6 +2,8 @@ package com.usbmediaexplorer.ui.browse
 
 import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,6 +46,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -97,6 +100,12 @@ fun BrowseScreen(uri: String, snackbarHostState: SnackbarHostState) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val details by viewModel.details.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+
+    // Access can be missing or revoked (USB replugged, grant removed in system settings). The
+    // error state offers the SAF picker right there instead of leaving the user stuck.
+    val treeGrant = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri -> viewModel.onTreeGranted(uri) }
 
     fun toast(message: String) {
         scope.launch { snackbarHostState.showSnackbar(message) }
@@ -317,6 +326,8 @@ fun BrowseScreen(uri: String, snackbarHostState: SnackbarHostState) {
                         body = stringResource(R.string.hint_connect_usb),
                         actionLabel = stringResource(R.string.action_retry),
                         onAction = { viewModel.reload() },
+                        secondaryActionLabel = stringResource(R.string.action_grant_access),
+                        onSecondaryAction = { treeGrant.launch(null) },
                         modifier = Modifier.align(Alignment.Center),
                     )
 
@@ -649,6 +660,8 @@ private fun MessageState(
     actionLabel: String?,
     onAction: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    secondaryActionLabel: String? = null,
+    onSecondaryAction: (() -> Unit)? = null,
 ) {
     Column(
         modifier = modifier.padding(32.dp),
@@ -665,7 +678,12 @@ private fun MessageState(
         }
         if (actionLabel != null && onAction != null) {
             Spacer(Modifier.height(14.dp))
-            TextButton(onClick = onAction) { Text(actionLabel) }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onAction) { Text(actionLabel) }
+                if (secondaryActionLabel != null && onSecondaryAction != null) {
+                    OutlinedButton(onClick = onSecondaryAction) { Text(secondaryActionLabel) }
+                }
+            }
         }
     }
 }
