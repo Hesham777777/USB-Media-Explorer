@@ -156,7 +156,8 @@
     <string name="dialog_delete_body">This cannot be undone. Files are removed from the drive itself.</string>
     <string name="dialog_error_title">Something went wrong</string>
     <string name="dialog_permission_title">Storage access</string>
-    <string name="dialog_permission_body">Android requires one explicit grant per external volume. Thumbnails are created by reading the video files directly — nothing is copied to your phone.</string>
+    <string name="dialog_permission_body">Allow access to photos, videos and audio to browse the internal storage and build real thumbnails. Thumbnails are created by reading the files directly - nothing is copied to your phone. External drives (USB/OTG, SD) each need one separate grant, which Android asks for when the drive is opened.</string>
+    <string name="grant_not_persisted">Access works for this session only: Android refused to save the grant. Reconnect the drive and grant it again if it disappears after a restart.</string>
     <string name="dialog_resume_title">Continue watching?</string>
     <string name="dialog_resume_body">You stopped at %1$s (%2$s left).</string>
     <string name="bulk_find">Find</string>

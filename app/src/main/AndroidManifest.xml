@@ -11,6 +11,12 @@
         android:maxSdkVersion="29" />
 
     <!-- Media permissions (API 33+) -->
+    <!--
+      Android 14 partial access ("Select photos and videos"). Requesting a permission that is not
+      declared here makes the system deny it silently - the dialog never appears and the grant can
+      never be obtained - so it must stay in sync with Permissions.mediaPermissions().
+    -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />

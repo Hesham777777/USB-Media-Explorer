@@ -4,15 +4,19 @@ import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.usbmediaexplorer.R
 import com.usbmediaexplorer.data.doc.DocNode
 import com.usbmediaexplorer.data.store.RecentEntry
 import com.usbmediaexplorer.data.volume.VolumeInfo
 import com.usbmediaexplorer.data.volume.VolumeState
 import com.usbmediaexplorer.di.AppContainer
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -34,6 +38,10 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
+
+    /** One-shot user feedback as string resource ids (grant problems and similar). */
+    private val _messages = MutableSharedFlow<Int>(extraBufferCapacity = 4)
+    val messages: Flow<Int> = _messages.asSharedFlow()
 
     private val volumeRepository = container.volumeRepository
     private val docRepository = container.docRepository
@@ -100,14 +108,22 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     fun onTreeGranted(uri: Uri?) {
         if (uri == null) return
         viewModelScope.launch {
-            volumeRepository.persistTree(uri)
+            val persisted = volumeRepository.persistTree(uri)
             volumeRepository.refresh()
+            if (!persisted) {
+                // The volume still opens for this session, but the user deserves to know that
+                // Android refused to remember the grant.
+                _messages.tryEmit(R.string.grant_not_persisted)
+            }
         }
     }
 
+    /** [granted] is re-read from the system by the caller, never inferred from the result map. */
     fun onMediaPermissionResult(granted: Boolean) {
         _state.value = _state.value.copy(needsMediaPermission = !granted)
-        if (granted) refresh()
+        // Always refresh: a partial grant ("Select photos") or a denial both change what the
+        // internal storage card can show.
+        refresh()
     }
 
     /** Opens a volume, or returns null when a grant is required first. */

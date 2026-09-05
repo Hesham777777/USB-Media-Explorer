@@ -5,6 +5,15 @@ import android.net.Uri
 
 enum class VolumeKind { INTERNAL, SD_CARD, USB, EXTERNAL }
 
+/**
+ * What "Grant access" must do for a volume that is not ready yet.
+ *
+ * Removable volumes (USB/OTG, SD) are unlocked with one SAF tree grant; the internal storage is
+ * unlocked with the ordinary runtime media permission dialog, because asking the user to pick a
+ * tree for their own internal storage both confuses them and does not survive as well.
+ */
+enum class GrantKind { SAF_TREE, RUNTIME_MEDIA }
+
 enum class VolumeState {
     /** Readable right now. */
     READY,
@@ -36,6 +45,7 @@ data class VolumeInfo(
     val deviceLabel: String? = null,
     val description: String? = null,
     val grantIntent: Intent? = null,
+    val grantKind: GrantKind = GrantKind.SAF_TREE,
     val isUsbAttached: Boolean = false,
 ) {
     val progress: Float

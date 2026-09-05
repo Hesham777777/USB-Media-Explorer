@@ -49,6 +49,13 @@ class VolumeRepository(
     private val _volumes = MutableStateFlow<List<VolumeInfo>>(emptyList())
     val volumes: StateFlow<List<VolumeInfo>> = _volumes.asStateFlow()
 
+    /**
+     * Tree grants that Android would not make permanent. The URI returned by the picker is still
+     * readable for the lifetime of the task, so the volume must open now and simply ask again
+     * after a restart instead of staying locked forever.
+     */
+    private val sessionTrees = MutableStateFlow<List<Uri>>(emptyList())
+
     /** Set while a plug/unplug storm is being processed. */
     private val _refreshing = MutableStateFlow(false)
     val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
@@ -68,9 +75,10 @@ class VolumeRepository(
     // ------------------------------------------------------------------
 
     fun grantedTrees(): List<Uri> = runCatching {
-        context.contentResolver.persistedUriPermissions
+        val persisted = context.contentResolver.persistedUriPermissions
             .filter { it.isReadPermission && DocUri.isTree(it.uri) }
             .map { it.uri }
+        (persisted + sessionTrees.value).distinctBy { it.toString() }
     }.getOrDefault(emptyList())
 
     fun volumeById(id: String): VolumeInfo? = _volumes.value.firstOrNull { it.id == id }
@@ -90,7 +98,13 @@ class VolumeRepository(
     private fun resolveRef(uri: Uri): VolumeRef = volumeFor(uri)?.let { VolumeRef(it.id, it.name) }
         ?: VolumeRef(ID_INTERNAL, context.getString(R.string.volume_internal))
 
-    /** Persists a tree grant returned by ACTION_OPEN_DOCUMENT_TREE. */
+    /**
+     * Persists a tree grant returned by ACTION_OPEN_DOCUMENT_TREE.
+     *
+     * Returns false when Android refused to make it permanent (a read-only volume, or a picker
+     * result that carried no persistable flag). The grant is kept for this session either way, and
+     * the caller tells the user what happened.
+     */
     fun persistTree(uri: Uri): Boolean {
         val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
         val ok = runCatching {
@@ -105,10 +119,9 @@ class VolumeRepository(
                 true
             }.getOrDefault(false)
         }
-        if (ok) {
-            VolumeEventBus.publish(VolumeEvent.PermissionGranted(uri))
-            scope.launch { refresh() }
-        }
+        sessionTrees.value = (sessionTrees.value + uri).distinctBy { it.toString() }
+        if (ok) VolumeEventBus.publish(VolumeEvent.PermissionGranted(uri))
+        scope.launch { refresh() }
         return ok
     }
 
@@ -119,6 +132,7 @@ class VolumeRepository(
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
             )
         }
+        sessionTrees.value = sessionTrees.value.filterNot { it == volume.rootUri }
         scope.launch { refresh() }
     }
 
@@ -144,17 +158,33 @@ class VolumeRepository(
         // 1. Internal storage ------------------------------------------------
         val internalDir = Environment.getExternalStorageDirectory()
         val internalStats = runCatching { StatFs(internalDir.path) }.getOrNull()
-        val internalState = when {
-            internalDir.canRead() -> VolumeState.READY
-            Permissions.hasMediaAccess(context) -> VolumeState.READY
-            else -> VolumeState.NEEDS_PERMISSION
+        val consumedTrees = HashSet<String>()
+
+        // Two ways in: the runtime media permission (raw paths, media files), or a SAF tree grant
+        // on primary storage, which needs no runtime permission at all and also exposes documents.
+        val mediaAccess = Permissions.hasMediaAccess(context)
+        val primaryTree = trees.firstOrNull { DocUri.isPrimaryStorage(it) }
+        primaryTree?.let { consumedTrees += it.toString() }
+
+        // NOTE: File.canRead() is not a permission check — on Android 10+ it answers true for
+        // /storage/emulated/0 even with every permission denied, which used to show an "accessible"
+        // internal storage that then listed nothing.
+        val internalState = if (mediaAccess || primaryTree != null) {
+            VolumeState.READY
+        } else {
+            VolumeState.NEEDS_PERMISSION
         }
         out += VolumeInfo(
             id = ID_INTERNAL,
             name = context.getString(R.string.volume_internal),
             kind = VolumeKind.INTERNAL,
-            rootUri = Uri.fromFile(internalDir),
+            rootUri = when {
+                mediaAccess -> Uri.fromFile(internalDir)
+                primaryTree != null -> primaryTree
+                else -> Uri.EMPTY
+            },
             state = internalState,
+            grantKind = GrantKind.RUNTIME_MEDIA,
             isRemovable = false,
             uuid = "primary",
             totalBytes = internalStats?.totalBytes,
@@ -224,6 +254,7 @@ class VolumeRepository(
 
         // 3. Persisted tree grants that do not match a mounted volume --------
         trees.forEach { tree ->
+            if (tree.toString() in consumedTrees) return@forEach
             val uuid = DocUri.volumeUuid(tree)
             if (uuid != null && matchedUuids.any { it.equals(uuid, ignoreCase = true) }) return@forEach
             val docId = runCatching { DocumentsContract.getTreeDocumentId(tree) }.getOrNull()
@@ -272,7 +303,18 @@ class VolumeRepository(
     /** SAF picker intent that pre-selects the volume on Android 11+. */
     private fun grantIntentFor(volume: StorageVolume, dirFile: File?): Intent {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            runCatching { return volume.createOpenDocumentTreeIntent() }
+            runCatching {
+                return volume.createOpenDocumentTreeIntent().apply {
+                    // Some platform builds hand this intent back without the persistable flag;
+                    // takePersistableUriPermission() then throws "No persistable permission
+                    // grants" and the user's grant is silently lost.
+                    addFlags(
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                            Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                            Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
+                    )
+                }
+            }
         }
         return Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
             addFlags(

@@ -41,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -50,11 +51,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.usbmediaexplorer.R
 import com.usbmediaexplorer.data.doc.DocNode
 import com.usbmediaexplorer.data.store.RecentEntry
+import com.usbmediaexplorer.data.volume.GrantKind
 import com.usbmediaexplorer.data.volume.VolumeInfo
 import com.usbmediaexplorer.ui.common.LocalAppContainer
 import com.usbmediaexplorer.ui.nav.LocalNavigator
@@ -83,14 +88,43 @@ fun HomeScreen(snackbarHostState: SnackbarHostState) {
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
-    ) { result -> viewModel.onMediaPermissionResult(result.values.any { it }) }
+    ) {
+        // Re-read the real state instead of trusting the result map: on Android 14 the user may
+        // choose partial access, and the map alone does not tell media access from audio-only.
+        viewModel.onMediaPermissionResult(Permissions.hasMediaAccess(context))
+    }
 
-    LaunchedEffect(Unit) {
+    val syncPermissionState = {
         viewModel.setNeedsMediaPermission(!Permissions.hasMediaAccess(context))
         viewModel.refresh()
     }
 
+    LaunchedEffect(Unit) { syncPermissionState() }
+
+    // The user may grant (or revoke) permissions from the system settings and come back: the
+    // volume cards must reflect reality without a manual refresh.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) syncPermissionState()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Grant problems (for example a tree Android would not persist) surface as a snackbar.
+    LaunchedEffect(Unit) {
+        viewModel.messages.collect { resId ->
+            snackbarHostState.showSnackbar(context.getString(resId))
+        }
+    }
+
     fun requestGrant(volume: VolumeInfo) {
+        if (volume.grantKind == GrantKind.RUNTIME_MEDIA) {
+            // Internal storage: the ordinary runtime permission dialog, not the SAF picker.
+            permissionLauncher.launch(Permissions.runtimePermissions(context))
+            return
+        }
         val intent = viewModel.grantIntentFor(volume)
         if (intent == null) {
             treePicker.launch(null)
@@ -149,7 +183,7 @@ fun HomeScreen(snackbarHostState: SnackbarHostState) {
             if (state.needsMediaPermission) {
                 item(key = "media-permission") {
                     PermissionCard(
-                        onRequest = { permissionLauncher.launch(Permissions.mediaPermissions()) },
+                        onRequest = { permissionLauncher.launch(Permissions.runtimePermissions(context)) },
                     )
                 }
             }
