@@ -214,11 +214,20 @@ class ThumbnailRepository(
     /**
      * A folder's cover is derived from its children, so deleting, renaming, moving or replacing a
      * file inside it must drop the parent's cached cover too — the next visit picks the new poster.
+     *
+     * A cover may also be inherited from a sub-folder (`Series/Season 1/folder.jpg` covers
+     * `Series`), so the climb goes as deep as the cover search itself.
      */
     private suspend fun invalidateParentCover(node: DocNode) {
-        val parent = runCatching { docRepository.parentOf(node) }.getOrNull() ?: return
-        cache.removeForNode(parent.key)
-        cache.removeForNode(parent.stableKey)
+        var current = runCatching { docRepository.parentOf(node) }.getOrNull()
+        var levels = FolderCoverExtractor.MAX_DEPTH
+        while (levels > 0) {
+            val parent = current ?: return
+            cache.removeForNode(parent.key)
+            cache.removeForNode(parent.stableKey)
+            current = runCatching { docRepository.parentOf(parent) }.getOrNull()
+            levels--
+        }
     }
 
     private companion object {

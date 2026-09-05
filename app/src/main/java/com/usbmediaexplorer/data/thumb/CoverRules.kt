@@ -1,25 +1,37 @@
 package com.usbmediaexplorer.data.thumb
 
+import com.usbmediaexplorer.util.CoverNames
+
 /**
  * Folder-cover decision logic.
  *
- * This file is deliberately pure Kotlin — no Android, no I/O, no coroutine — so the whole
- * priority system is covered by JVM unit tests (`CoverRulesTest`). [FolderCoverExtractor] does the
- * directory listing and the cheap header probes, then asks [rank] which image should become the
- * folder's cover.
+ * This file is deliberately pure Kotlin — no Android, no I/O, no coroutine — so the whole priority
+ * system is covered by JVM unit tests (`CoverRulesTest`). [FolderCoverExtractor] walks the folder
+ * (and, when needed, a bounded number of sub-folders), does the cheap header probes, and asks
+ * [rankItems] which image should become the folder's cover.
  *
- * Design rules taken from the requirements:
- *  - no mandatory folder name and no mandatory file name: names are only *hints*,
- *  - an image that shares its base name with the movie file or with the folder is the strongest
- *    automatic signal there is (`Movie.2010.1080p.mkv` + `Movie.2010.1080p.jpg`),
- *  - geometry (a portrait ~2:3 poster) breaks ties and demotes screenshots/backdrops,
- *  - a folder with no usable image simply yields no cover — never an error.
+ * The rule is a *name* rule (see [CoverNames]):
+ *
+ * ```
+ * poster  >  folder  >  cover          (case-insensitive, any image extension)
+ * ```
+ *
+ *  - an image is a cover **only** if its base name is one of those three; `movie.jpg`,
+ *    `image.jpg`, `screenshot.jpg`, `photo.jpg` or any other picture inside the folder is ignored,
+ *  - the folder itself always wins over its sub-folders, and sub-folders are searched only when
+ *    the folder holds no cover — that is what supports a multi-part movie (`Film/Part 1`,
+ *    `Film/Part 2`…) and a series (`Series/Season 1/…`) without ever requiring a video file in the
+ *    folder that owns the cover,
+ *  - when several files share the same cover name and differ only by extension, the best available
+ *    format and the most detailed one win — decided from header-only probes, never by loading the
+ *    images,
+ *  - when nothing matches, the result is empty and the UI draws the ordinary folder icon.
  */
 object CoverRules {
 
     /**
-     * One image found inside the folder. [width]/[height] stay 0 until a header probe succeeds,
-     * which keeps [rank] usable in tests with pre-measured candidates.
+     * One image found while searching for a cover. [width]/[height] stay 0 until a header probe
+     * succeeds, which keeps [rank] usable in tests with pre-measured candidates.
      */
     data class Candidate(
         val name: String,
@@ -27,90 +39,112 @@ object CoverRules {
         val width: Int = 0,
         val height: Int = 0,
         val hidden: Boolean = false,
+        /** 0 = the folder itself, 1 = a direct sub-folder, 2 = a sub-folder of a sub-folder. */
+        val depth: Int = 0,
     ) {
-        val extension: String
-            get() {
-                val dot = name.lastIndexOf('.')
-                return if (dot <= 0 || dot == name.lastIndex) "" else name.substring(dot + 1).lowercase()
-            }
+        val extension: String get() = CoverNames.extensionOf(name)
 
-        val baseName: String
-            get() = if (extension.isEmpty()) name else name.removeSuffix(".$extension")
+        val baseName: String get() = CoverNames.baseNameOf(name)
+
+        /** `poster` = 0, `folder` = 2, `cover` = 4 (odd values are prefixed variants); -1 = no match. */
+        val tier: Int get() = CoverNames.tier(name)
+
+        val isCoverName: Boolean get() = tier != CoverNames.NO_MATCH
     }
 
-    /** Below this an image is a stub/icon, not artwork. */
-    const val MIN_BYTES = 3_000L
+    /** Default header-probe budget: enough to separate same-name files, small enough to stay fast. */
+    const val MAX_PROBES = 3
 
-    /** Below this edge length an image is too small to be a poster. */
+    /** Below this edge length an image is too small to be artwork (used only to break ties). */
     const val MIN_EDGE = 160
 
-    /** A name score at or above this means "this file announces itself as artwork". */
-    const val HINTED = 100f
-
-    private val STRONG_HINTS = listOf("poster", "cover", "front", "folder", "movie", "film")
-    private val MEDIUM_HINTS = listOf("thumb", "banner", "backdrop", "fanart", "background", "disc", "back")
-    private val NEGATIVE_HINTS = listOf(
-        "screenshot", "screen", "snap", "sample", "logo", "icon", "subtitle", "proof",
-        "wallpaper", "avatar", "actor", "cast", "sub",
-    )
-    private val DISQUALIFIED = -1_000f
+    /**
+     * Orders cover-named images best-first and measures only the few that can win.
+     *
+     * [probe] must return the same candidate with [Candidate.width]/[Candidate.height] filled in (a
+     * header-only read). It is called at most [maxProbes] times and **only** for images that are
+     * already covers by name, so a library of thousands of movie folders never loads their posters
+     * just to choose one — and never even reads the header of an unrelated picture.
+     *
+     * The returned list may be tried in order by the caller, so a cover that cannot be decoded (an
+     * exotic RAW, a corrupt file) simply falls through to the next one. An empty list means "this
+     * folder has no cover": the UI then draws the folder icon.
+     */
+    fun rank(
+        candidates: List<Candidate>,
+        maxProbes: Int = MAX_PROBES,
+        probe: (Candidate) -> Candidate = { it },
+    ): List<Candidate> = rankItems(candidates, { it }, maxProbes) { probe(it) }
 
     /**
-     * Name-based priority. Higher is better; [DISQUALIFIED] means "never use this".
-     *
-     * Matching is done on a folded form of the name (lowercase, letters and digits only) so that
-     * `Movie 2010 1080p.jpg`, `movie.2010.1080p.jpg` and `Movie_2010_1080p.jpg` all compare equal
-     * to `Movie.2010.1080p.mkv` without any hard-coded naming scheme.
+     * Same ordering for a list of arbitrary items (the extractor ranks `image + node` pairs, so the
+     * winning candidate can be decoded without a second lookup by name).
      */
-    fun nameScore(folderName: String, candidate: Candidate, videoBaseNames: List<String>): Float {
-        if (candidate.hidden) return DISQUALIFIED
-        // A known-tiny file is a stub or an icon. An unknown size (some providers report -1)
-        // must stay eligible instead of costing the folder its cover.
-        if (candidate.sizeBytes > 0 && candidate.sizeBytes < MIN_BYTES) return DISQUALIFIED
+    fun <T> rankItems(
+        items: List<T>,
+        candidateOf: (T) -> Candidate,
+        maxProbes: Int = MAX_PROBES,
+        probe: (T) -> Candidate = { candidateOf(it) },
+    ): List<T> {
+        // Only images whose *name* makes them a cover take part. A hidden file or a literal
+        // zero-byte stub is never artwork, whatever it is called.
+        val usable = items.filter { isUsable(candidateOf(it)) }
+        if (usable.isEmpty()) return emptyList()
 
-        val base = fold(candidate.baseName)
-        var score = 0f
+        val base = usable.sortedWith(compareBy<T, Candidate>(ORDER) { candidateOf(it) })
 
-        // 1. The file announces itself as artwork.
-        score += when {
-            STRONG_HINTS.any { base.contains(it) } -> 100f
-            MEDIUM_HINTS.any { base.contains(it) } -> 45f
-            else -> 0f
+        // The probe budget goes to the best few; everything else keeps its unknown dimensions,
+        // which sort neutrally instead of being punished.
+        val budget = maxProbes.coerceAtLeast(1)
+        val measured = ArrayList<Pair<T, Candidate>>(base.size)
+        base.forEachIndexed { index, item ->
+            val candidate = candidateOf(item)
+            val probed = if (index < budget && candidate.width <= 0 && candidate.height <= 0) {
+                runCatching { probe(item) }.getOrDefault(candidate)
+            } else {
+                candidate
+            }
+            measured += item to probed
         }
+        return measured
+            .sortedWith(compareBy<Pair<T, Candidate>, Candidate>(ORDER) { it.second })
+            .map { it.first }
+    }
 
-        // 2. Same base name as one of the movies in the folder — the strongest signal.
-        val matchesVideo = videoBaseNames
-            .map(::fold)
-            .filter { it.length >= 4 }
-            .any { it == base || it.contains(base) || base.contains(it) }
-        if (matchesVideo && base.length >= 4) score += 120f
+    /** A cover-named image that is not hidden and not an empty file. */
+    fun isUsable(candidate: Candidate): Boolean =
+        candidate.isCoverName && !candidate.hidden && candidate.sizeBytes != 0L
 
-        // 3. Named after the folder itself.
-        val folder = fold(folderName)
-        if (folder.length >= 4 && base.length >= 4 &&
-            (folder == base || folder.contains(base) || base.contains(folder))
-        ) {
-            score += 90f
+    /**
+     * Full priority: nearest level first, then the name rule, then quality. Dimensions come from a
+     * header probe; unknown dimensions stay neutral (0) so an unprobed file is never disqualified.
+     */
+    private val ORDER: Comparator<Candidate> = compareBy<Candidate> { it.depth }
+        .thenBy { it.tier }
+        .thenByDescending { detailScore(it.width, it.height) }
+        .thenByDescending { CoverNames.formatRank(it.extension) }
+        .thenByDescending { it.sizeBytes }
+        .thenByDescending { geometryScore(it.width, it.height) }
+        .thenBy { it.name }
+
+    /** Resolution preference between files that share a cover name: more detail wins. */
+    fun detailScore(width: Int, height: Int): Int {
+        if (width <= 0 || height <= 0) return 0
+        if (width < MIN_EDGE || height < MIN_EDGE) return -2
+        val shortest = if (width < height) width else height
+        return when {
+            shortest >= 1400 -> 4
+            shortest >= 900 -> 3
+            shortest >= 500 -> 2
+            shortest >= 200 -> 1
+            else -> 0
         }
-
-        // 4. Demote screenshots, samples, logos and subtitle-related images.
-        if (NEGATIVE_HINTS.any { base.contains(it) }) score -= 80f
-
-        // 5. Container preference: plain stills first, animated or icon formats last.
-        score += when (candidate.extension) {
-            "jpg", "jpeg", "png", "webp" -> 12f
-            "heic", "heif", "avif" -> 8f
-            "bmp", "tif", "tiff" -> 0f
-            "gif" -> -35f
-            "ico" -> -90f
-            else -> -20f
-        }
-        return score
     }
 
     /**
-     * Geometry priority, computed from a header-only probe (`inJustDecodeBounds`), so no pixels are
-     * ever decoded just to choose a cover. Unknown dimensions stay neutral instead of punishing.
+     * Shape preference, computed from a header-only probe (`inJustDecodeBounds`), so no pixels are
+     * ever decoded just to choose a cover. It only separates files of equal name, format and
+     * resolution — a 2:3 poster is the shape artwork is published in.
      */
     fun geometryScore(width: Int, height: Int): Float {
         if (width <= 0 || height <= 0) return 0f
@@ -133,78 +167,5 @@ object CoverRules {
             else -> -25f
         }
         return shape + detail
-    }
-
-    /** Total priority of a measured candidate. */
-    fun score(folderName: String, candidate: Candidate, videoBaseNames: List<String>): Float =
-        nameScore(folderName, candidate, videoBaseNames) +
-            geometryScore(candidate.width, candidate.height)
-
-    /**
-     * Orders the images of a folder by cover suitability and measures only the few that can win.
-     *
-     * [probe] must return the same candidate with [Candidate.width]/[Candidate.height] filled in
-     * (a header-only read). It is called at most [maxProbes] times, which is what keeps a library
-     * of thousands of movie folders fast: no full image is ever loaded to pick a cover.
-     *
-     * The returned list is best-first and may be tried in order by the caller, so a cover that
-     * cannot be decoded (an exotic RAW, a corrupt file) simply falls through to the next one.
-     * An empty list means "this folder has no cover" — the UI then draws the folder icon.
-     */
-    fun rank(
-        folderName: String,
-        candidates: List<Candidate>,
-        videoBaseNames: List<String>,
-        maxProbes: Int = 4,
-        probe: (Candidate) -> Candidate = { it },
-    ): List<Candidate> {
-        val usable = candidates.filter {
-            !it.hidden && (it.sizeBytes <= 0 || it.sizeBytes >= MIN_BYTES)
-        }
-        if (usable.isEmpty()) return emptyList()
-
-        val scored = usable
-            .map { it to nameScore(folderName, it, videoBaseNames) }
-            .sortedWith(compareByDescending<Pair<Candidate, Float>> { it.second }.thenBy { it.first.name })
-
-        // Files that announce themselves as artwork win the probe budget. If nothing does, fall
-        // back to "the biggest files first": in a plain photo folder the largest image is far more
-        // likely to be the intended artwork than a 4 KB thumbnail.
-        val hinted = scored.filter { it.second >= HINTED }
-        val pool = if (hinted.isNotEmpty()) {
-            hinted
-        } else {
-            scored.sortedByDescending { it.first.sizeBytes }
-        }
-
-        val measured = ArrayList<Pair<Candidate, Float>>(pool.size)
-        pool.take(maxProbes.coerceAtLeast(1)).forEach { (candidate, nameScore) ->
-            val probed = if (candidate.width > 0 && candidate.height > 0) {
-                candidate
-            } else {
-                runCatching { probe(candidate) }.getOrDefault(candidate)
-            }
-            measured += probed to (nameScore + geometryScore(probed.width, probed.height))
-        }
-
-        val ranked = measured.sortedByDescending { it.second }.map { it.first }
-        // Anything never probed still deserves a chance as a last resort (cheap: no header read),
-        // so a winner that turns out to be undecodable can fall through to the next image.
-        val chosen = ranked.mapTo(HashSet()) { it.name }
-        val rest = scored.map { it.first }.filter { it.name !in chosen }
-        return ranked + rest
-    }
-
-    /**
-     * Comparison form of a name: lowercased, letters and digits only. Separators (`.` `_` ` ` `-`
-     * `(`…`) disappear, so `Movie.2010.1080p.jpg` matches `Movie 2010 1080p.mkv`, and non-Latin
-     * names (Arabic included) keep their letters instead of being folded away.
-     */
-    private fun fold(value: String): String {
-        val out = StringBuilder(value.length)
-        value.forEach { ch ->
-            if (ch.isLetterOrDigit()) out.append(ch.lowercaseChar())
-        }
-        return out.toString()
     }
 }

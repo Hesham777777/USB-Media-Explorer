@@ -200,7 +200,7 @@
     <string name="setting_image_thumbs">معاينات الصور</string>
     <string name="setting_image_thumbs_desc">عرض الصورة نفسها بدلًا من أيقونة</string>
     <string name="setting_folder_covers">أغلفة المجلدات</string>
-    <string name="setting_folder_covers_desc">استخدام صورة البوستر الموجودة داخل المجلد كغلاف له في عرض الشبكة</string>
+    <string name="setting_folder_covers_desc">استخدام صورة باسم poster أو folder أو cover داخل المجلد كغلاف له في عرض الشبكة، ولا تستخدم أي صورة أخرى</string>
     <string name="setting_thumb_size">حجم المعاينة</string>
     <string name="setting_thumb_quality">جودة المعاينة</string>
     <string name="setting_frame_position">الإطار المستخدم للمعاينة</string>

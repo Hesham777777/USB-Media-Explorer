@@ -6,6 +6,7 @@ import android.database.Cursor
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.provider.DocumentsContract
+import com.usbmediaexplorer.util.CoverNames
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.InputStream
@@ -86,31 +87,53 @@ class SafDocProvider(
             out
         }
 
-    override suspend fun coverScan(node: DocNode, imageLimit: Int, videoNameLimit: Int): FolderScan =
-        withContext(Dispatchers.IO) {
-            val images = ArrayList<DocNode>()
-            val videoNames = ArrayList<String>()
-            val treeUri = treeFor(node.uri) ?: return@withContext FolderScan.EMPTY
-            val docId = DocUri.documentIdOf(node.uri) ?: return@withContext FolderScan.EMPTY
-            val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, docId)
-            query(childrenUri) { cursor ->
-                while (cursor.moveToNext()) {
-                    if (images.size >= imageLimit && videoNames.size >= videoNameLimit) break
-                    val id = cursor.getString(0) ?: continue
-                    val childUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, id)
-                    val child = rowToNode(childUri, cursor, docIdOverride = id)
-                    when (child.kind) {
-                        MediaKind.IMAGE -> if (images.size < imageLimit) images.add(child)
-                        MediaKind.VIDEO -> if (videoNames.size < videoNameLimit) {
-                            videoNames.add(child.nameWithoutExtension)
-                        }
-
-                        else -> Unit
+    override suspend fun coverScan(
+        node: DocNode,
+        imageLimit: Int,
+        videoNameLimit: Int,
+        folderLimit: Int,
+    ): FolderScan = withContext(Dispatchers.IO) {
+        val images = ArrayList<DocNode>()
+        val videoNames = ArrayList<String>()
+        val folders = ArrayList<DocNode>()
+        val treeUri = treeFor(node.uri) ?: return@withContext FolderScan.EMPTY
+        val docId = DocUri.documentIdOf(node.uri) ?: return@withContext FolderScan.EMPTY
+        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, docId)
+        query(childrenUri) { cursor ->
+            // One cursor pass for images *and* sub-folders: on a USB stick every extra query is
+            // expensive, and the cover search may need to descend into `Season 1`, `Part 2`…
+            // A row only becomes a DocNode when it is actually kept, so a folder with thousands of
+            // unrelated files does not pay for a node (volume lookup, display path) per file.
+            while (cursor.moveToNext()) {
+                val id = cursor.getString(0) ?: continue
+                val name = cursor.getString(1).orEmpty()
+                val mime = cursor.getString(2)
+                if (DocumentsContract.Document.MIME_TYPE_DIR == mime) {
+                    if (folderLimit > 0 && folders.size < folderLimit && !name.startsWith(".")) {
+                        folders.add(nodeAt(treeUri, id, cursor))
                     }
+                    continue
+                }
+                when (MediaKind.of(name.substringAfterLast('.', ""), mime, false)) {
+                    // A cover-named image is always kept, even past the cap: the cap protects
+                    // memory, it must never hide the `poster.jpg` of the folder.
+                    MediaKind.IMAGE -> {
+                        if (images.size < imageLimit || CoverNames.isCoverName(name)) {
+                            images.add(nodeAt(treeUri, id, cursor))
+                        }
+                    }
+
+                    MediaKind.VIDEO -> if (videoNames.size < videoNameLimit) {
+                        videoNames.add(name.substringBeforeLast('.', name))
+                    }
+
+                    else -> Unit
                 }
             }
-            FolderScan(images, videoNames)
         }
+        folders.sortBy { it.name }
+        FolderScan(images, videoNames, folders)
+    }
 
     override suspend fun mediaCount(node: DocNode): MediaCount = withContext(Dispatchers.IO) {
         var videos = 0
@@ -257,6 +280,10 @@ class SafDocProvider(
     }
 
     private fun treeFor(uri: Uri): Uri? = DocUri.treeUriFor(uri, grantedTrees())
+
+    /** The node of the cursor's current row, addressed by [id] inside [treeUri]. */
+    private fun nodeAt(treeUri: Uri, id: String, cursor: Cursor): DocNode =
+        rowToNode(DocumentsContract.buildDocumentUriUsingTree(treeUri, id), cursor, docIdOverride = id)
 
     private fun rowToNode(uri: Uri, cursor: Cursor, docIdOverride: String? = null): DocNode {
         val docId = docIdOverride ?: cursor.getString(0) ?: DocUri.documentIdOf(uri).orEmpty()

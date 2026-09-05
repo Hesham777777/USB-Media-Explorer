@@ -21,7 +21,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Refresh
@@ -45,9 +44,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,7 +60,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.usbmediaexplorer.R
 import com.usbmediaexplorer.data.doc.DocNode
+import com.usbmediaexplorer.data.settings.FOLDER_COVER_ASPECT
 import com.usbmediaexplorer.data.store.RecentEntry
+import com.usbmediaexplorer.data.store.asDocNode
 import com.usbmediaexplorer.data.volume.GrantKind
 import com.usbmediaexplorer.data.volume.VolumeInfo
 import com.usbmediaexplorer.ui.common.LocalAppContainer
@@ -484,11 +487,22 @@ private fun RecentFolderRow(entry: RecentEntry, onOpen: () -> Unit) {
             Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                Icons.Outlined.Folder,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
+            // Folder Cover applies to this card too: the poster inside the folder (`poster` >
+            // `folder` > `cover`) is shown in poster proportions, and [MediaThumbnail] falls back
+            // to the ordinary folder icon when the folder holds no cover by that name.
+            val node = remember(entry.key) { entry.asDocNode() }
+            Box(
+                Modifier
+                    .width(52.dp)
+                    .aspectRatio(FOLDER_COVER_ASPECT)
+                    .clip(RoundedCornerShape(10.dp)),
+            ) {
+                MediaThumbnail(
+                    node = node,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit,
+                )
+            }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(entry.name, style = MaterialTheme.typography.titleSmall, maxLines = 1)

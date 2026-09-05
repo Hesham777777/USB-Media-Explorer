@@ -1,6 +1,8 @@
 package com.usbmediaexplorer.data.store
 
 import android.content.Context
+import android.net.Uri
+import com.usbmediaexplorer.data.doc.DocNode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
@@ -42,6 +44,32 @@ data class RecentEntry(
             kindName = obj.optString("kind", ""),
         )
     }
+}
+
+/**
+ * The node this entry points at, rebuilt from the stored fields — no disk access, so the "recent
+ * folders" card can render its Folder Cover (and its folder-icon fallback) even before a volume
+ * answers, and a temporarily unmounted USB stick costs nothing here.
+ *
+ * The entry keeps the node's own identity string ([DocNode.key] = `uri|size|lastModified`) but
+ * stores `size = -1`, so size and modified time are read back from the key. That makes the
+ * thumbnail cache key identical to the one produced while browsing the same folder: one cover is
+ * generated once, and the two screens share it.
+ */
+fun RecentEntry.asDocNode(): DocNode {
+    val parts = key.split('|')
+    val keySize = parts.getOrNull(parts.size - 2)?.toLongOrNull()
+    val keyModified = parts.lastOrNull()?.toLongOrNull()
+    return DocNode(
+        uri = Uri.parse(uri),
+        name = name,
+        isDirectory = isDirectory,
+        size = keySize ?: size,
+        lastModified = keyModified ?: 0L,
+        mimeType = null,
+        volumeId = volumeId,
+        displayPath = displayPath,
+    )
 }
 
 /** "Last opened" lists: watched videos and browsed folders (spec §18). */

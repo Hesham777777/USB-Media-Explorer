@@ -45,8 +45,12 @@ class DocRepository(
 
     override suspend fun exists(uri: Uri): Boolean = providerFor(uri).exists(uri)
 
-    override suspend fun coverScan(node: DocNode, imageLimit: Int, videoNameLimit: Int): FolderScan =
-        providerFor(node).coverScan(node, imageLimit, videoNameLimit)
+    override suspend fun coverScan(
+        node: DocNode,
+        imageLimit: Int,
+        videoNameLimit: Int,
+        folderLimit: Int,
+    ): FolderScan = providerFor(node).coverScan(node, imageLimit, videoNameLimit, folderLimit)
 
     override suspend fun mediaChildren(node: DocNode, limit: Int): List<DocNode> =
         providerFor(node).mediaChildren(node, limit)

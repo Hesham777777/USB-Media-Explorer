@@ -2,6 +2,7 @@ package com.usbmediaexplorer.data.doc
 
 import android.net.Uri
 import android.os.ParcelFileDescriptor
+import com.usbmediaexplorer.util.CoverNames
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -54,24 +55,42 @@ interface DocProvider {
 
     /**
      * One bounded pass over a folder for the Folder Cover feature: the images that could be the
-     * cover, plus a few movie names so a poster named after its movie can be recognised.
+     * cover and, when [folderLimit] > 0, the sub-folders — a multi-part movie or a series keeps its
+     * artwork one or two levels deeper, so the search has to be able to descend.
      *
-     * Providers stop as soon as both limits are reached, so a folder holding thousands of files
-     * costs the same as a small one — the default implementation below falls back to [children]
-     * for providers that cannot short-circuit.
+     * An image whose name is one of the cover names (`poster`, `folder`, `cover`) is always kept,
+     * even past [imageLimit]: the limit protects memory, it must never hide the cover itself.
+     * The default implementation below falls back to [children] for providers that cannot
+     * short-circuit.
      */
-    suspend fun coverScan(node: DocNode, imageLimit: Int, videoNameLimit: Int): FolderScan =
+    suspend fun coverScan(
+        node: DocNode,
+        imageLimit: Int,
+        videoNameLimit: Int,
+        folderLimit: Int = 0,
+    ): FolderScan =
         children(node).let { all ->
+            val images = all.filter { it.kind == MediaKind.IMAGE }
             FolderScan(
-                images = all.asSequence()
-                    .filter { it.kind == MediaKind.IMAGE }
-                    .take(imageLimit)
-                    .toList(),
+                // Within the cap, plus every cover-named image beyond it: the cap protects memory,
+                // it must never hide the `poster.jpg` that sits after a hundred unrelated pictures.
+                images = images.withIndex()
+                    .filter { (index, child) -> index < imageLimit || CoverNames.isCoverName(child.name) }
+                    .map { it.value },
                 videoNames = all.asSequence()
                     .filter { it.kind == MediaKind.VIDEO }
                     .map { it.nameWithoutExtension }
                     .take(videoNameLimit)
                     .toList(),
+                subFolders = if (folderLimit <= 0) {
+                    emptyList()
+                } else {
+                    all.asSequence()
+                        .filter { it.isDirectory && !it.isHidden }
+                        .sortedBy { it.name }
+                        .take(folderLimit)
+                        .toList()
+                },
             )
         }
 
@@ -120,7 +139,12 @@ interface DocProvider {
  * Result of [DocProvider.coverScan]: the cover candidates of a folder and the base names of the
  * movies inside it (used to match `Movie.2010.mkv` with `Movie.2010.jpg`).
  */
-data class FolderScan(val images: List<DocNode>, val videoNames: List<String>) {
+data class FolderScan(
+    val images: List<DocNode>,
+    val videoNames: List<String>,
+    /** Direct sub-folders, sorted by name, so the cover search can descend a bounded depth. */
+    val subFolders: List<DocNode> = emptyList(),
+) {
     companion object {
         val EMPTY = FolderScan(emptyList(), emptyList())
     }

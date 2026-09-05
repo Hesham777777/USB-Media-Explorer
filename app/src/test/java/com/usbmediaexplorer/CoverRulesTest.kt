@@ -7,205 +7,322 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Folder Cover priority system (pure logic — no Android, no I/O).
+ * Folder Cover selection (pure logic — no Android, no I/O).
  *
- * These are the acceptance cases of the feature: one image, several images, no image at all,
- * posters that are only recognisable by geometry, names that match the movie or the folder
- * (including Arabic), and the probe budget that keeps a big library fast.
+ * These are the acceptance cases of the feature. The rule is a **name** rule:
+ *
+ * ```
+ * poster  >  folder  >  cover
+ * ```
+ *
+ * so an image is a cover only when its base name is one of those three (any extension, any case),
+ * the folder itself always beats its sub-folders, sub-folders are used when the folder holds
+ * nothing — which is what supports a multi-part movie and a multi-season series — and a folder with
+ * no cover-named image yields no cover at all, so the UI draws the ordinary folder icon.
  */
 class CoverRulesTest {
 
-    private fun rank(
-        folder: String,
-        candidates: List<Candidate>,
-        videos: List<String> = emptyList(),
-        probes: Int = 4,
-    ): List<Candidate> = CoverRules.rank(folder, candidates, videos, probes)
+    private fun rank(vararg candidates: Candidate): List<Candidate> =
+        CoverRules.rank(candidates.toList())
 
-    // ---- basic acceptance cases -------------------------------------------
+    private fun chosen(vararg candidates: Candidate): String? = rank(*candidates).firstOrNull()?.name
+
+    // ---- the three names, and their priority --------------------------------
 
     @Test
-    fun `a folder with a single image uses it`() {
-        val only = Candidate("artwork.jpg", 240_000, 600, 900)
-        val result = rank("Some Movie", listOf(only))
+    fun `poster jpg is chosen as the folder cover`() {
+        val result = rank(
+            Candidate("screenshot001.png", 900_000, 1920, 1080),
+            Candidate("poster.jpg", 320_000, 675, 1000),
+            Candidate("IMG_2041.jpg", 2_400_000, 4000, 3000),
+        )
+        // Only the cover-named image survives: the others are not candidates at all.
         assertEquals(1, result.size)
-        assertEquals("artwork.jpg", result.first().name)
-    }
-
-    @Test
-    fun `a folder with no usable image yields no cover instead of an error`() {
-        assertTrue(rank("Documents", emptyList()).isEmpty())
-        // Only stubs and hidden files inside: still no cover.
-        val unusable = listOf(
-            Candidate(".hidden.jpg", 90_000, 600, 900, hidden = true),
-            Candidate("tiny.png", 800, 32, 32),
-        )
-        assertTrue(rank("Documents", unusable).isEmpty())
-    }
-
-    @Test
-    fun `an image whose size is unknown is still eligible`() {
-        val result = rank("movie", listOf(Candidate("poster.jpg", -1, 675, 1000)))
         assertEquals("poster.jpg", result.first().name)
     }
 
     @Test
-    fun `an announced poster wins over the other images of the folder`() {
+    fun `folder jpg is chosen when there is no poster`() {
         val result = rank(
-            folder = "The.Matrix.1999",
-            candidates = listOf(
-                Candidate("screenshot001.png", 900_000, 1920, 1080),
-                Candidate("poster.jpg", 320_000, 675, 1000),
-                Candidate("IMG_2041.jpg", 2_400_000, 4000, 3000),
-            ),
+            Candidate("photo.jpg", 3_000_000, 4000, 3000),
+            Candidate("folder.jpg", 240_000, 675, 1000),
+            Candidate("movie.jpg", 500_000, 800, 1200),
+        )
+        assertEquals(1, result.size)
+        assertEquals("folder.jpg", result.first().name)
+    }
+
+    @Test
+    fun `cover jpg is chosen when there is neither poster nor folder`() {
+        val result = rank(
+            Candidate("image.jpg", 1_200_000, 1600, 1200),
+            Candidate("cover.jpg", 260_000, 700, 1000),
+        )
+        assertEquals(1, result.size)
+        assertEquals("cover.jpg", result.first().name)
+    }
+
+    @Test
+    fun `poster has priority over folder`() {
+        assertEquals("poster.jpg", chosen(Candidate("folder.jpg", 900_000, 1000, 1500), Candidate("poster.jpg", 120_000, 400, 600)))
+    }
+
+    @Test
+    fun `folder has priority over cover`() {
+        assertEquals("folder.jpg", chosen(Candidate("cover.png", 900_000, 1000, 1500), Candidate("folder.jpg", 120_000, 400, 600)))
+    }
+
+    @Test
+    fun `the full priority chain holds in one folder`() {
+        val result = rank(
+            Candidate("cover.webp", 300_000, 675, 1000),
+            Candidate("folder.png", 300_000, 675, 1000),
+            Candidate("poster.jpg", 300_000, 675, 1000),
+        )
+        assertEquals(listOf("poster.jpg", "folder.png", "cover.webp"), result.map { it.name })
+    }
+
+    // ---- nothing else is ever a cover ---------------------------------------
+
+    @Test
+    fun `an image with any other name is never used as a cover`() {
+        val result = rank(
+            Candidate("movie.jpg", 800_000, 675, 1000),
+            Candidate("image.jpg", 700_000, 675, 1000),
+            Candidate("screenshot.jpg", 600_000, 675, 1000),
+            Candidate("photo.jpg", 500_000, 675, 1000),
+        )
+        assertTrue("no cover name means no cover", result.isEmpty())
+    }
+
+    @Test
+    fun `a folder full of pictures but without a cover name yields no cover`() {
+        val many = (1..40).map { Candidate("IMG_%04d.jpg".format(it), 500_000L + it, 675, 1000) }
+        assertTrue(rank(*many.toTypedArray()).isEmpty())
+    }
+
+    @Test
+    fun `no known cover name anywhere means the folder icon is drawn`() {
+        val result = rank(
+            Candidate("movie.jpg", 800_000, 675, 1000, depth = 0),
+            Candidate("photo.jpg", 800_000, 675, 1000, depth = 1),
+            Candidate("screenshot.png", 800_000, 1920, 1080, depth = 2),
+        )
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `hidden files and empty files are not covers even when named poster`() {
+        assertTrue(
+            rank(
+                Candidate(".poster.jpg", 400_000, 675, 1000, hidden = true),
+                Candidate("poster.jpg", 0, 675, 1000),
+            ).isEmpty(),
+        )
+    }
+
+    @Test
+    fun `an unknown size does not disqualify a cover name`() {
+        assertEquals("poster.jpg", chosen(Candidate("poster.jpg", -1)))
+    }
+
+    // ---- case and extension --------------------------------------------------
+
+    @Test
+    fun `letter case never matters`() {
+        assertEquals("POSTER.JPG", chosen(Candidate("folder.png", 300_000, 675, 1000), Candidate("POSTER.JPG", 300_000, 675, 1000)))
+        assertTrue(CoverRules.isUsable(Candidate("Cover.PNG", 300_000)))
+        assertTrue(CoverRules.isUsable(Candidate("FOLDER.WEBP", 300_000)))
+    }
+
+    @Test
+    fun `the search never depends on one extension`() {
+        listOf("jpg", "jpeg", "png", "webp", "heic", "avif", "bmp", "tiff", "gif").forEach { ext ->
+            assertEquals(
+                "poster.$ext must be usable",
+                "poster.$ext",
+                chosen(Candidate("poster.$ext", 300_000, 675, 1000)),
+            )
+        }
+    }
+
+    @Test
+    fun `several extensions for the same cover name are all candidates`() {
+        val result = rank(
+            Candidate("poster.jpeg", 300_000, 675, 1000),
+            Candidate("poster.webp", 300_000, 675, 1000),
+            Candidate("poster.png", 300_000, 675, 1000),
+        )
+        assertEquals(3, result.size)
+        // Same name, same dimensions: the best available format wins.
+        assertEquals("poster.png", result.first().name)
+    }
+
+    @Test
+    fun `for the same name the most detailed image wins over the format`() {
+        val result = rank(
+            Candidate("poster.png", 120_000, 300, 450),
+            Candidate("poster.jpg", 900_000, 1200, 1800),
         )
         assertEquals("poster.jpg", result.first().name)
     }
 
     @Test
-    fun `the image named after the movie file is recognised without any fixed name`() {
+    fun `exact cover names beat their variants`() {
         val result = rank(
-            folder = "movies",
-            candidates = listOf(
-                Candidate("fanart-landscape.jpg", 700_000, 1920, 1080),
-                Candidate("Dune.Part.Two.2024.1080p.jpg", 300_000, 800, 1200),
-            ),
-            videos = listOf("Dune.Part.Two.2024.1080p.BluRay.x264"),
+            Candidate("poster-ar.jpg", 900_000, 1200, 1800),
+            Candidate("poster.jpg", 120_000, 400, 600),
         )
-        assertEquals("Dune.Part.Two.2024.1080p.jpg", result.first().name)
+        assertEquals("poster.jpg", result.first().name)
+        assertEquals("poster-ar.jpg", result.last().name)
+    }
+
+    // ---- hierarchy: multi-part movies and multi-season series ----------------
+
+    @Test
+    fun `the cover of the folder itself wins over the covers of its sub-folders`() {
+        val result = rank(
+            Candidate("poster.jpg", 900_000, 1200, 1800, depth = 1),
+            Candidate("cover.jpg", 120_000, 400, 600, depth = 0),
+        )
+        assertEquals("cover.jpg", result.first().name)
     }
 
     @Test
-    fun `the image named after the folder is preferred`() {
+    fun `a multi-part movie uses the poster of the parent folder`() {
+        // Film/poster.jpg next to Part 1, Part 2, Part 3 — the parent's own poster is used, and a
+        // poster found deeper never replaces it.
         val result = rank(
-            folder = "Interstellar 2014",
-            candidates = listOf(
-                Candidate("random-photo.jpg", 500_000, 1600, 1200),
-                Candidate("Interstellar 2014.jpg", 260_000, 700, 1000),
-            ),
+            Candidate("poster.jpg", 200_000, 675, 1000, depth = 1),
+            Candidate("poster.jpg", 320_000, 675, 1000, depth = 0),
         )
-        assertEquals("Interstellar 2014.jpg", result.first().name)
+        assertEquals(0, result.first().depth)
     }
 
     @Test
-    fun `Arabic folder and file names match each other`() {
+    fun `a sub-folder cover is used when the folder itself has none`() {
+        // Series/ holds no cover, Season 1 holds folder.jpg: the season gives the series its cover.
         val result = rank(
-            folder = "فيلم الرسالة 1976",
-            candidates = listOf(
-                Candidate("صورة عشوائية.jpg", 480_000, 1600, 900),
-                Candidate("فيلم الرسالة 1976.jpg", 250_000, 800, 1200),
-            ),
+            Candidate("movie.jpg", 800_000, 675, 1000, depth = 0),
+            Candidate("folder.jpg", 240_000, 675, 1000, depth = 1),
         )
-        assertEquals("فيلم الرسالة 1976.jpg", result.first().name)
-    }
-
-    // ---- geometry ----------------------------------------------------------
-
-    @Test
-    fun `with uninformative names a portrait poster beats a landscape screenshot`() {
-        val result = rank(
-            folder = "library",
-            candidates = listOf(
-                Candidate("a.jpg", 900_000, 1920, 1080), // landscape backdrop
-                Candidate("b.jpg", 300_000, 640, 960), // 2:3 poster
-            ),
-        )
-        assertEquals("b.jpg", result.first().name)
+        assertEquals(1, result.size)
+        assertEquals("folder.jpg", result.first().name)
     }
 
     @Test
-    fun `posters are never distorted by the score - a 2 to 3 image scores best`() {
-        val poster = CoverRules.geometryScore(675, 1000)
-        val square = CoverRules.geometryScore(1000, 1000)
-        val wide = CoverRules.geometryScore(1920, 1080)
-        val strip = CoverRules.geometryScore(4000, 800)
-        val icon = CoverRules.geometryScore(48, 48)
-        assertTrue(poster > square)
-        assertTrue(square > wide)
-        assertTrue(wide > strip)
-        assertTrue(strip > icon)
+    fun `a cover two levels deep is used when nothing is found above`() {
+        // Series/Season 1/Episodes/poster.jpg
+        assertEquals(
+            "poster.jpg",
+            chosen(
+                Candidate("episode01.jpg", 800_000, 1920, 1080, depth = 1),
+                Candidate("poster.jpg", 240_000, 675, 1000, depth = 2),
+            ),
+        )
+    }
+
+    @Test
+    fun `within one level the name rule decides between seasons`() {
+        // Season 1/folder.jpg and Season 2/poster.jpg are equally deep: poster wins.
+        val result = rank(
+            Candidate("folder.jpg", 900_000, 1200, 1800, depth = 1),
+            Candidate("poster.jpg", 120_000, 400, 600, depth = 1),
+        )
+        assertEquals("poster.jpg", result.first().name)
+    }
+
+    @Test
+    fun `a folder that only contains sub-folders still gets their cover`() {
+        // No video and no image in the folder itself: nothing is required but the name rule.
+        val result = rank(
+            Candidate("cover.jpg", 260_000, 700, 1000, depth = 1),
+            Candidate("cover.jpg", 260_000, 700, 1000, depth = 2),
+        )
+        assertEquals(2, result.size)
+        assertEquals(1, result.first().depth)
+    }
+
+    // ---- the performance contract -------------------------------------------
+
+    @Test
+    fun `only cover-named images are probed - a big library never reads unrelated headers`() {
+        val many = (1..40).map { Candidate("IMG_%04d.jpg".format(it), 500_000L + it, 0, 0) } +
+            Candidate("poster.jpg", 300_000, 0, 0)
+        var probes = 0
+        val result = CoverRules.rank(many, maxProbes = 3) { candidate ->
+            probes++
+            candidate.copy(width = 675, height = 1000)
+        }
+        assertEquals("exactly the one cover-named image may be probed", 1, probes)
+        assertEquals(1, result.size)
+        assertEquals("poster.jpg", result.first().name)
+    }
+
+    @Test
+    fun `the probe budget is respected even with many cover-named files`() {
+        val many = (1..12).map { Candidate("poster-%02d.jpg".format(it), 300_000L + it, 0, 0) }
+        var probes = 0
+        CoverRules.rank(many, maxProbes = 3) { candidate ->
+            probes++
+            candidate.copy(width = 675, height = 1000)
+        }
+        assertTrue("probed $probes times, budget is 3", probes <= 3)
+    }
+
+    @Test
+    fun `unprobed covers stay available so an undecodable winner can fall through`() {
+        val result = CoverRules.rank(
+            listOf(
+                Candidate("poster.jpg", 300_000),
+                Candidate("poster.png", 300_000),
+                Candidate("cover.jpg", 300_000),
+            ),
+            maxProbes = 1,
+        ) { it.copy(width = 675, height = 1000) }
+        assertEquals(3, result.size)
+        assertEquals("poster.png", result.first().name)
+        assertEquals("cover.jpg", result.last().name)
+    }
+
+    // ---- geometry is a tie-breaker, never a veto -----------------------------
+
+    @Test
+    fun `a landscape image named poster is still the cover`() {
+        assertEquals("poster.jpg", chosen(Candidate("poster.jpg", 900_000, 1920, 1080)))
     }
 
     @Test
     fun `unknown dimensions stay neutral instead of disqualifying the file`() {
+        assertEquals(0, CoverRules.detailScore(0, 0))
         assertEquals(0f, CoverRules.geometryScore(0, 0), 0.0001f)
     }
 
-    // ---- demotions ---------------------------------------------------------
+    @Test
+    fun `more detail ranks higher`() {
+        assertTrue(CoverRules.detailScore(1200, 1800) > CoverRules.detailScore(300, 450))
+        assertTrue(CoverRules.detailScore(300, 450) > CoverRules.detailScore(80, 80))
+    }
+
+    // ---- what the extractor relies on ----------------------------------------
 
     @Test
-    fun `screenshots samples logos and animated or icon files are demoted`() {
-        val base = Candidate("poster.jpg", 300_000, 675, 1000)
-        val screenshot = Candidate("screenshot.jpg", 300_000, 675, 1000)
-        val sample = Candidate("sample-cover.jpg", 300_000, 675, 1000)
-        val gif = Candidate("poster.gif", 300_000, 675, 1000)
-        val ico = Candidate("poster.ico", 300_000, 675, 1000)
-        val videos = emptyList<String>()
-        val scoreOf = { c: Candidate -> CoverRules.score("movie", c, videos) }
-        assertTrue(scoreOf(base) > scoreOf(screenshot))
-        assertTrue(scoreOf(base) > scoreOf(sample))
-        assertTrue(scoreOf(base) > scoreOf(gif))
-        assertTrue(scoreOf(base) > scoreOf(ico))
+    fun `isUsable accepts cover names only`() {
+        assertTrue(CoverRules.isUsable(Candidate("poster.jpg", 300_000)))
+        assertTrue(CoverRules.isUsable(Candidate("folder.jpg", -1)))
+        assertTrue(!CoverRules.isUsable(Candidate("movie.jpg", 300_000)))
+        assertTrue(!CoverRules.isUsable(Candidate("poster.jpg", 0)))
+        assertTrue(!CoverRules.isUsable(Candidate("poster.jpg", 300_000, hidden = true)))
     }
 
     @Test
-    fun `hidden files and stubs are never chosen even when named poster`() {
-        val result = rank(
-            folder = "movie",
-            candidates = listOf(
-                Candidate(".poster.jpg", 400_000, 675, 1000, hidden = true),
-                Candidate("poster-tiny.jpg", 900, 675, 1000),
-                Candidate("real-photo.jpg", 2_000_000, 1200, 1600),
-            ),
+    fun `rankItems keeps the caller item identity so the winner can be decoded`() {
+        val items = listOf(
+            "Season 2/poster.jpg" to Candidate("poster.jpg", 300_000, depth = 1),
+            "Series/cover.jpg" to Candidate("cover.jpg", 300_000, depth = 0),
         )
-        assertEquals("real-photo.jpg", result.first().name)
-    }
-
-    // ---- performance contract ---------------------------------------------
-
-    @Test
-    fun `only the top candidates are probed - a big library never reads every header`() {
-        val many = (1..40).map { Candidate("IMG_%04d.jpg".format(it), 500_000L + it, 0, 0) } +
-            Candidate("poster.jpg", 300_000, 0, 0)
-        var probes = 0
-        val result = CoverRules.rank(
-            folderName = "movie",
-            candidates = many,
-            videoBaseNames = emptyList(),
-            maxProbes = 4,
-        ) { candidate ->
-            probes++
-            candidate.copy(width = 675, height = 1000)
-        }
-        assertTrue("probed $probes times, budget is 4", probes <= 4)
-        assertEquals("poster.jpg", result.first().name)
-    }
-
-    @Test
-    fun `unprobed candidates stay available so an undecodable winner can fall through`() {
-        val result = rank(
-            folder = "movie",
-            candidates = listOf(
-                Candidate("poster.jpg", 300_000, 675, 1000),
-                Candidate("cover.png", 300_000, 675, 1000),
-                Candidate("backup.jpg", 300_000, 675, 1000),
-            ),
-            probes = 1,
-        )
-        assertEquals(3, result.size)
-        assertEquals(result.map { it.name }.toSet(), setOf("poster.jpg", "cover.png", "backup.jpg"))
-    }
-
-    @Test
-    fun `no fixed folder name and no fixed file name is required`() {
-        // Nothing here matches any keyword: the choice is made on geometry and size alone.
-        val result = rank(
-            folder = "xyz-9",
-            candidates = listOf(
-                Candidate("q1.jpg", 1_200_000, 800, 1200),
-                Candidate("q2.jpg", 900_000, 1920, 1080),
-            ),
-        )
-        assertEquals("q1.jpg", result.first().name)
+        val ordered = CoverRules.rankItems(items, { it.second })
+        assertEquals(2, ordered.size)
+        assertEquals("Series/cover.jpg", ordered.first().first)
     }
 }

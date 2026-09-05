@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.os.StatFs
+import com.usbmediaexplorer.util.CoverNames
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -62,24 +63,42 @@ class FileDocProvider(
             out
         }
 
-    override suspend fun coverScan(node: DocNode, imageLimit: Int, videoNameLimit: Int): FolderScan =
-        withContext(Dispatchers.IO) {
-            val file = node.uri.path?.let(::File) ?: return@withContext FolderScan.EMPTY
-            val images = ArrayList<DocNode>()
-            val videoNames = ArrayList<String>()
-            for (child in file.listFiles().orEmpty()) {
-                if (images.size >= imageLimit && videoNames.size >= videoNameLimit) break
-                when (MediaKind.ofExtension(child.extension)) {
-                    MediaKind.IMAGE -> if (images.size < imageLimit) images.add(toNode(child))
-                    MediaKind.VIDEO -> if (videoNames.size < videoNameLimit) {
-                        videoNames.add(child.nameWithoutExtension)
-                    }
-
-                    else -> Unit
+    override suspend fun coverScan(
+        node: DocNode,
+        imageLimit: Int,
+        videoNameLimit: Int,
+        folderLimit: Int,
+    ): FolderScan = withContext(Dispatchers.IO) {
+        val file = node.uri.path?.let(::File) ?: return@withContext FolderScan.EMPTY
+        val images = ArrayList<DocNode>()
+        val videoNames = ArrayList<String>()
+        val folders = ArrayList<DocNode>()
+        // One pass, no early break: the listing is already in memory, and stopping early could
+        // hide a `poster.jpg` that sits after a hundred unrelated pictures.
+        for (child in file.listFiles().orEmpty()) {
+            if (child.isDirectory) {
+                if (folderLimit > 0 && folders.size < folderLimit && !child.isHidden) {
+                    folders.add(toNode(child))
                 }
+                continue
             }
-            FolderScan(images, videoNames)
+            when (MediaKind.ofExtension(child.extension)) {
+                MediaKind.IMAGE -> {
+                    if (images.size < imageLimit || CoverNames.isCoverName(child.name)) {
+                        images.add(toNode(child))
+                    }
+                }
+
+                MediaKind.VIDEO -> if (videoNames.size < videoNameLimit) {
+                    videoNames.add(child.nameWithoutExtension)
+                }
+
+                else -> Unit
+            }
         }
+        folders.sortBy { it.name }
+        FolderScan(images, videoNames, folders)
+    }
 
     override suspend fun mediaCount(node: DocNode): MediaCount = withContext(Dispatchers.IO) {
         val file = node.uri.path?.let(::File) ?: return@withContext MediaCount()

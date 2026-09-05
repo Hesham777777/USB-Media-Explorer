@@ -201,7 +201,7 @@
     <string name="setting_image_thumbs_desc">Show the image itself instead of an icon</string>
     <string name="setting_folder_covers">Folder covers</string>
     <!-- No apostrophes in here: aapt2 rejects an unescaped one inside a values resource. -->
-    <string name="setting_folder_covers_desc">Use a poster image found inside a folder as the cover of that folder in grid views</string>
+    <string name="setting_folder_covers_desc">Use an image named poster, folder or cover inside a folder as its cover in grid views; other pictures are never used</string>
     <string name="setting_thumb_size">Thumbnail size</string>
     <string name="setting_thumb_quality">Thumbnail quality</string>
     <string name="setting_frame_position">Frame used for preview</string>

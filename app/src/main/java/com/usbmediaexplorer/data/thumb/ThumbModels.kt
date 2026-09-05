@@ -43,7 +43,7 @@ data class ThumbRequest(
 
     companion object {
         /** Bumped whenever the extraction pipeline changes, invalidating old cache entries. */
-        const val ENGINE_VERSION = 5
+        const val ENGINE_VERSION = 6
     }
 }
 
