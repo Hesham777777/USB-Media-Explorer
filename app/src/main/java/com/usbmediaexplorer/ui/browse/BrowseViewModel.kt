@@ -278,7 +278,9 @@ class BrowseViewModel(
      * [METADATA_UI_INTERVAL_MS].
      */
     private val metadataUi: kotlinx.coroutines.flow.Flow<Map<String, MediaMetadata>> = flow {
-        metadataRepository.published.conflate().collect { snapshot ->
+        // StateFlow conflates by nature: a collector that pauses (the delay below) simply
+        // skips to the newest snapshot, which is exactly the throttling wanted here.
+        metadataRepository.published.collect { snapshot ->
             emit(snapshot)
             delay(METADATA_UI_INTERVAL_MS)
         }
