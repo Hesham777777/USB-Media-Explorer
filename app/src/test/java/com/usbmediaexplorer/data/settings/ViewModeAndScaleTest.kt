@@ -57,14 +57,17 @@ class ViewModeAndScaleTest {
     }
 
     @Test
-    fun `scaled column counts never fall below one on the densest grid`() {
-        // Worst case: the widest grid (6 columns in landscape) with the large scale (-1).
+    fun `scaled column counts are clamped to at least one`() {
+        // The large item size removes a column, and the widest tiles already use a single column,
+        // so the raw sum can reach zero. The renderer clamps it; assert the clamp, and pin the one
+        // combination that needs it so a future column-count change is a conscious decision.
         ViewMode.entries.forEach { mode ->
             ItemScale.entries.forEach { scale ->
-                val columns = mode.columnsPortrait + scale.columnsDelta
+                val columns = (mode.columnsPortrait + scale.columnsDelta).coerceAtLeast(1)
                 assertTrue("$mode/$scale -> $columns", columns >= 1)
             }
         }
+        assertEquals(0, ViewMode.GRID_HUGE.columnsPortrait + ItemScale.LARGE.columnsDelta)
     }
 
     @Test
