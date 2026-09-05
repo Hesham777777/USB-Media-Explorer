@@ -41,6 +41,10 @@ class SettingsRepository(private val context: Context) {
         val SORT_MODE = stringPreferencesKey("sort_mode")
         val FOLDERS_FIRST = booleanPreferencesKey("folders_first")
         val SHOW_HIDDEN = booleanPreferencesKey("show_hidden")
+        val SHOW_EXTENSIONS = booleanPreferencesKey("show_extensions")
+        val SHOW_MEDIA_INFO = booleanPreferencesKey("show_media_info")
+        val ITEM_SCALE = stringPreferencesKey("item_scale")
+        val FIRST_RUN_PERMISSIONS = booleanPreferencesKey("first_run_permissions")
         val LAZY_METADATA = booleanPreferencesKey("lazy_metadata")
         val PER_FOLDER_VIEW = booleanPreferencesKey("per_folder_view")
         val RESUME_PROMPT = booleanPreferencesKey("resume_prompt")
@@ -82,6 +86,10 @@ class SettingsRepository(private val context: Context) {
     suspend fun setDefaultSortMode(value: SortMode) = set(Keys.SORT_MODE, value.name)
     suspend fun setFoldersFirst(value: Boolean) = set(Keys.FOLDERS_FIRST, value)
     suspend fun setShowHidden(value: Boolean) = set(Keys.SHOW_HIDDEN, value)
+    suspend fun setShowExtensions(value: Boolean) = set(Keys.SHOW_EXTENSIONS, value)
+    suspend fun setShowMediaInfo(value: Boolean) = set(Keys.SHOW_MEDIA_INFO, value)
+    suspend fun setItemScale(value: ItemScale) = set(Keys.ITEM_SCALE, value.name)
+    suspend fun setFirstRunPermissionsAsked(value: Boolean) = set(Keys.FIRST_RUN_PERMISSIONS, value)
     suspend fun setLazyMetadata(value: Boolean) = set(Keys.LAZY_METADATA, value)
     suspend fun setRememberPerFolderView(value: Boolean) = set(Keys.PER_FOLDER_VIEW, value)
     suspend fun setResumePrompt(value: Boolean) = set(Keys.RESUME_PROMPT, value)
@@ -114,6 +122,10 @@ class SettingsRepository(private val context: Context) {
         defaultSortMode = enumOrDefault(this[Keys.SORT_MODE], SortMode.NAME_ASC),
         foldersFirst = this[Keys.FOLDERS_FIRST] ?: true,
         showHiddenFiles = this[Keys.SHOW_HIDDEN] ?: false,
+        showExtensions = this[Keys.SHOW_EXTENSIONS] ?: true,
+        showMediaInfo = this[Keys.SHOW_MEDIA_INFO] ?: true,
+        itemScale = enumOrDefault(this[Keys.ITEM_SCALE], ItemScale.NORMAL),
+        firstRunPermissionsAsked = this[Keys.FIRST_RUN_PERMISSIONS] ?: false,
         lazyMetadata = this[Keys.LAZY_METADATA] ?: true,
         rememberPerFolderView = this[Keys.PER_FOLDER_VIEW] ?: true,
         resumePromptEnabled = this[Keys.RESUME_PROMPT] ?: true,
@@ -142,6 +154,10 @@ class SettingsRepository(private val context: Context) {
         this[Keys.SORT_MODE] = settings.defaultSortMode.name
         this[Keys.FOLDERS_FIRST] = settings.foldersFirst
         this[Keys.SHOW_HIDDEN] = settings.showHiddenFiles
+        this[Keys.SHOW_EXTENSIONS] = settings.showExtensions
+        this[Keys.SHOW_MEDIA_INFO] = settings.showMediaInfo
+        this[Keys.ITEM_SCALE] = settings.itemScale.name
+        this[Keys.FIRST_RUN_PERMISSIONS] = settings.firstRunPermissionsAsked
         this[Keys.LAZY_METADATA] = settings.lazyMetadata
         this[Keys.PER_FOLDER_VIEW] = settings.rememberPerFolderView
         this[Keys.RESUME_PROMPT] = settings.resumePromptEnabled

@@ -271,4 +271,41 @@
     <string name="cd_select">Select</string>
     <string name="cd_volume_icon">Volume</string>
     <string name="cd_clear">Clear</string>
+
+    <!-- Redesign: storage volumes -->
+    <string name="volume_usb_tag">USB</string>
+    <string name="volume_connected">Connected</string>
+    <string name="volume_not_connected">Not connected</string>
+    <string name="volume_needs_permission_short">Access needed</string>
+    <string name="volume_remove_grant">Remove access</string>
+    <string name="volume_used_of_total">%1$s of %2$s</string>
+    <string name="volume_free_space">%1$s free</string>
+    <string name="volume_used_label">Used</string>
+    <string name="volume_free_label">Free</string>
+    <string name="volume_details_group">Volume</string>
+    <string name="volume_mount_label">Mount point</string>
+    <string name="volume_id_label">Identifier</string>
+    <string name="volume_access_label">Access</string>
+    <string name="volume_access_saf">Granted folder (Storage Access Framework)</string>
+    <string name="volume_access_runtime">Media permission</string>
+    <string name="volume_removable_label">Removable</string>
+    <string name="volume_state_ready">Ready</string>
+    <string name="label_state">State</string>
+    <string name="label_filesystem">File system</string>
+    <string name="answer_yes">Yes</string>
+    <string name="answer_no">No</string>
+    <string name="home_volumes_summary">%1$d volumes • %2$s free</string>
+    <string name="home_volumes_summary_one">1 volume • %1$s free</string>
+    <string name="recent_folders_window">Last two hours</string>
+    <string name="quick_transfers">Transfers</string>
+    <string name="quick_all_folders">All folders</string>
+    <!-- Redesign: first launch -->
+    <string name="onboarding_title">Set up access once</string>
+    <string name="onboarding_body">Grant everything the app needs in one step: media access to browse the internal storage, and notifications to follow copy and move operations. External drives (USB, SD) ask for one separate grant each, only when you open them.</string>
+    <string name="onboarding_grant_all">Grant all permissions</string>
+    <string name="onboarding_later">Not now</string>
+    <string name="onboarding_permissions_row">Media and notifications</string>
+    <string name="permission_strip_title">Media access is off</string>
+    <string name="permission_strip_body">Allow photos, videos and audio once to browse the internal storage.</string>
+    <string name="msg_removed_from_recents">Removed from recent</string>
 </resources>

@@ -1,6 +1,8 @@
 package com.usbmediaexplorer.ui.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,179 +11,456 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.SdCard
-import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Usb
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.usbmediaexplorer.R
 import com.usbmediaexplorer.data.volume.FileSystemProbe
+import com.usbmediaexplorer.data.volume.GrantKind
 import com.usbmediaexplorer.data.volume.VolumeInfo
 import com.usbmediaexplorer.data.volume.VolumeKind
 import com.usbmediaexplorer.data.volume.VolumeState
+import com.usbmediaexplorer.ui.common.InfoRow
+import com.usbmediaexplorer.ui.common.PressableSurface
+import com.usbmediaexplorer.ui.common.SheetGroupLabel
+import com.usbmediaexplorer.ui.common.SheetHeader
+import com.usbmediaexplorer.ui.common.StatusDot
+import com.usbmediaexplorer.ui.common.TagChip
+import com.usbmediaexplorer.ui.common.UsageRing
+import com.usbmediaexplorer.ui.common.bidiLtr
+import com.usbmediaexplorer.ui.common.bidiName
+import com.usbmediaexplorer.ui.common.volumeColor
+import com.usbmediaexplorer.ui.common.volumeIcon
+import com.usbmediaexplorer.ui.theme.AppRadius
+import com.usbmediaexplorer.ui.theme.AppSpacing
+import com.usbmediaexplorer.ui.theme.AppTheme
+import com.usbmediaexplorer.ui.theme.Palette
 import com.usbmediaexplorer.util.Formatters
 
 /**
- * One storage entry (spec §1): name, kind icon, used/free space, and a single "grant access"
- * button when Android still needs permission for this volume.
+ * Compact storage card (spec §1).
+ *
+ * One card answers four questions without a single button taking a line of its own: what is this
+ * drive, how full is it, is it reachable, and what can I do with it. Tapping the card opens it —
+ * the old full-width "Open" button is gone, and everything secondary (details, rescan, remove the
+ * grant) lives in the overflow menu.
+ *
+ * Two cards fit in a row on a phone; a single volume gets the [wide] layout so the space is used
+ * for information instead of being left empty.
  */
 @Composable
-fun VolumeCard(
+fun StorageCard(
     volume: VolumeInfo,
     onOpen: () -> Unit,
     onGrant: () -> Unit,
     modifier: Modifier = Modifier,
+    wide: Boolean = false,
+    onDetails: () -> Unit = {},
+    onRelease: () -> Unit = {},
+    onRescan: () -> Unit = {},
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    val ready = volume.state == VolumeState.READY
+    val mounted = volume.state != VolumeState.UNMOUNTED
+    val accent = volumeColor(volume.kind)
+    val extended = AppTheme.extended
+    var menuOpen by remember { mutableStateOf(false) }
+
+    val stateColor = when (volume.state) {
+        VolumeState.READY -> extended.success
+        VolumeState.NEEDS_PERMISSION -> extended.warning
+        VolumeState.UNMOUNTED -> MaterialTheme.colorScheme.outline
+    }
+
+    PressableSurface(
+        onClick = { if (ready) onOpen() else if (mounted) onGrant() },
+        onLongClick = { onDetails() },
+        enabled = mounted,
+        modifier = modifier,
+        shape = RoundedCornerShape(AppRadius.lg),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(Modifier.padding(AppSpacing.card)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = iconFor(volume.kind),
-                    contentDescription = stringResource(R.string.cd_volume_icon),
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(30.dp),
-                )
-                Spacer(Modifier.width(12.dp))
+                Box(
+                    Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(accent.copy(alpha = if (AppTheme.isDark) 0.18f else 0.12f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = if (volume.state == VolumeState.NEEDS_PERMISSION) {
+                            Icons.Outlined.Lock
+                        } else {
+                            volumeIcon(volume.kind)
+                        },
+                        contentDescription = stringResource(R.string.cd_volume_icon),
+                        tint = if (volume.state == VolumeState.NEEDS_PERMISSION) stateColor else accent,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = volume.name,
-                        style = MaterialTheme.typography.titleMedium,
+                        text = volume.name.bidiName(),
+                        style = MaterialTheme.typography.titleSmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    val subtitle = subtitleFor(volume)
+                    val subtitle = cardSubtitle(volume)
                     if (subtitle.isNotEmpty()) {
                         Text(
-                            text = subtitle,
-                            style = MaterialTheme.typography.bodySmall,
+                            text = subtitle.bidiLtr(),
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
-                StateChip(volume.state)
+                Box {
+                    IconButton(
+                        onClick = { menuOpen = true },
+                        modifier = Modifier.size(30.dp),
+                    ) {
+                        Icon(
+                            Icons.Outlined.MoreVert,
+                            contentDescription = stringResource(R.string.action_more),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_details)) },
+                            leadingIcon = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                            onClick = {
+                                menuOpen = false
+                                onDetails()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_refresh)) },
+                            leadingIcon = { Icon(Icons.Outlined.Refresh, contentDescription = null) },
+                            onClick = {
+                                menuOpen = false
+                                onRescan()
+                            },
+                        )
+                        if (ready && volume.grantKind == GrantKind.SAF_TREE && volume.isRemovable) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.volume_remove_grant)) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Outlined.DeleteSweep,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                    )
+                                },
+                                onClick = {
+                                    menuOpen = false
+                                    onRelease()
+                                },
+                            )
+                        }
+                    }
+                }
             }
 
-            if (volume.totalBytes != null && volume.totalBytes > 0) {
-                Spacer(Modifier.height(12.dp))
-                LinearProgressIndicator(
-                    progress = { volume.progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp),
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = stringResource(
-                        R.string.volume_free_of,
-                        Formatters.size(volume.freeBytes ?: 0),
-                        Formatters.size(volume.totalBytes ?: 0),
-                    ),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else if (volume.state == VolumeState.READY) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = stringResource(R.string.volume_space_unknown),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Spacer(Modifier.height(AppSpacing.md))
+
+            if (wide) {
+                WideSpace(volume = volume, stateColor = stateColor, accent = accent)
+            } else {
+                CompactSpace(volume = volume, stateColor = stateColor, mounted = mounted)
             }
 
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                when (volume.state) {
-                    VolumeState.READY -> Button(
-                        onClick = onOpen,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(Icons.Outlined.FolderOpen, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.action_open))
-                    }
-
-                    VolumeState.NEEDS_PERMISSION -> OutlinedButton(
-                        onClick = onGrant,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(Icons.Outlined.Lock, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.action_grant_access))
-                    }
-
-                    VolumeState.UNMOUNTED -> OutlinedButton(
-                        onClick = onGrant,
-                        enabled = false,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(stringResource(R.string.volume_unmounted))
-                    }
+            // USB gets an explicit indicator: "is my stick still plugged in?" must be answerable
+            // without opening anything.
+            if (volume.kind == VolumeKind.USB) {
+                Spacer(Modifier.height(AppSpacing.sm))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TagChip(
+                        text = stringResource(R.string.volume_usb_tag),
+                        color = accent,
+                        container = accent.copy(alpha = if (AppTheme.isDark) 0.18f else 0.12f),
+                        icon = Icons.Outlined.Usb,
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    StatusDot(color = stateColor)
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        text = stringResource(
+                            when (volume.state) {
+                                VolumeState.READY -> R.string.volume_connected
+                                VolumeState.NEEDS_PERMISSION -> R.string.volume_needs_permission_short
+                                VolumeState.UNMOUNTED -> R.string.volume_not_connected
+                            },
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            } else if (volume.state != VolumeState.READY) {
+                Spacer(Modifier.height(AppSpacing.sm))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    StatusDot(color = stateColor)
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(
+                            if (volume.state == VolumeState.NEEDS_PERMISSION) {
+                                R.string.volume_needs_permission_short
+                            } else {
+                                R.string.volume_unmounted
+                            },
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = stateColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }
     }
 }
 
+/** Ring + numbers, stacked: the layout used when two cards share a row. */
 @Composable
-private fun subtitleFor(volume: VolumeInfo): String {
+private fun CompactSpace(volume: VolumeInfo, stateColor: Color, mounted: Boolean) {
+    val total = volume.totalBytes ?: 0L
+    val free = volume.freeBytes ?: 0L
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (mounted && total > 0) {
+            UsageRing(
+                fraction = volume.progress,
+                size = 44.dp,
+                stroke = 5.dp,
+                centerLabel = "${Formatters.percent(total - free, total)}%",
+            )
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(
+                        R.string.volume_used_of_total,
+                        Formatters.size(total - free),
+                        Formatters.size(total),
+                    ).bidiLtr(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(1.dp))
+                Text(
+                    text = stringResource(R.string.volume_free_space, Formatters.size(free)).bidiLtr(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = stateColor,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                )
+            }
+        } else {
+            Text(
+                text = if (mounted) {
+                    stringResource(R.string.volume_space_unknown)
+                } else {
+                    stringResource(R.string.volume_unmounted)
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/** Ring + a full breakdown, side by side: the layout used when one volume owns the row. */
+@Composable
+private fun WideSpace(volume: VolumeInfo, stateColor: Color, accent: Color) {
+    val total = volume.totalBytes ?: 0L
+    val free = volume.freeBytes ?: 0L
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (total > 0) {
+            UsageRing(
+                fraction = volume.progress,
+                size = 62.dp,
+                stroke = 7.dp,
+                centerLabel = "${Formatters.percent(total - free, total)}%",
+            )
+            Spacer(Modifier.width(AppSpacing.lg))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                SpaceLine(stringResource(R.string.label_size), Formatters.size(total), accent)
+                SpaceLine(stringResource(R.string.volume_used_label), Formatters.size(total - free), stateColor)
+                SpaceLine(stringResource(R.string.volume_free_label), Formatters.size(free), stateColor)
+            }
+        } else {
+            Text(
+                text = stringResource(R.string.volume_space_unknown),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SpaceLine(label: String, value: String, color: Color) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = value.bidiLtr(),
+            style = MaterialTheme.typography.labelMedium,
+            color = color,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+/** `FAT32 • 1234-ABCD` — technical identity, kept to one line and never mirrored by RTL. */
+@Composable
+private fun cardSubtitle(volume: VolumeInfo): String {
     val parts = ArrayList<String>(3)
-    FileSystemProbe.labelFor(volume.fileSystem)?.let {
-        parts += stringResource(R.string.volume_fs_label, it)
-    }
+    FileSystemProbe.labelFor(volume.fileSystem)?.let { parts += it }
     volume.deviceLabel?.let { parts += it }
-    if (volume.state == VolumeState.NEEDS_PERMISSION) {
-        parts += stringResource(R.string.volume_needs_permission)
+    if (parts.isEmpty()) {
+        volume.description?.let { parts += it }
     }
-    volume.description?.takeIf { volume.state == VolumeState.UNMOUNTED }?.let { parts += it }
     return parts.joinToString(" • ")
 }
 
+/** Everything about one volume, in a sheet instead of on the card. */
 @Composable
-private fun StateChip(state: VolumeState) {
-    val (label, color) = when (state) {
-        VolumeState.READY -> stringResource(R.string.action_open) to MaterialTheme.colorScheme.primary
-        VolumeState.NEEDS_PERMISSION ->
-            stringResource(R.string.volume_needs_permission) to MaterialTheme.colorScheme.tertiary
+fun VolumeDetailsSheet(volume: VolumeInfo, onDismiss: () -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val total = volume.totalBytes ?: 0L
+    val free = volume.freeBytes ?: 0L
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        SheetHeader(
+            icon = volumeIcon(volume.kind),
+            title = volume.name,
+            subtitle = cardSubtitle(volume).ifEmpty { stringResource(R.string.volume_unknown) },
+        )
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = AppSpacing.lg, end = AppSpacing.lg, bottom = AppSpacing.xxl),
+        ) {
+            if (total > 0) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    UsageRing(
+                        fraction = volume.progress,
+                        size = 56.dp,
+                        stroke = 6.dp,
+                        centerLabel = "${Formatters.percent(total - free, total)}%",
+                    )
+                    Spacer(Modifier.width(AppSpacing.lg))
+                    Column(Modifier.weight(1f)) {
+                        InfoRow(stringResource(R.string.label_size), Formatters.size(total), ltrValue = true)
+                        InfoRow(
+                            stringResource(R.string.volume_used_label),
+                            Formatters.size(total - free),
+                            ltrValue = true,
+                        )
+                        InfoRow(
+                            stringResource(R.string.volume_free_label),
+                            Formatters.size(free),
+                            valueColor = usageColorOf(volume.progress),
+                            ltrValue = true,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(AppSpacing.sm))
+            }
 
-        VolumeState.UNMOUNTED ->
-            stringResource(R.string.volume_unmounted) to MaterialTheme.colorScheme.outline
+            SheetGroupLabel(stringResource(R.string.volume_details_group))
+            InfoRow(
+                stringResource(R.string.label_state),
+                stringResource(
+                    when (volume.state) {
+                        VolumeState.READY -> R.string.volume_state_ready
+                        VolumeState.NEEDS_PERMISSION -> R.string.volume_needs_permission
+                        VolumeState.UNMOUNTED -> R.string.volume_unmounted
+                    },
+                ),
+            )
+            InfoRow(
+                stringResource(R.string.label_type),
+                stringResource(
+                    when (volume.kind) {
+                        VolumeKind.INTERNAL -> R.string.volume_internal
+                        VolumeKind.SD_CARD -> R.string.volume_sd_card
+                        VolumeKind.USB -> R.string.volume_usb
+                        VolumeKind.EXTERNAL -> R.string.volume_unknown
+                    },
+                ),
+            )
+            volume.fileSystem?.let {
+                InfoRow(
+                    stringResource(R.string.label_filesystem),
+                    FileSystemProbe.labelFor(it) ?: it,
+                    ltrValue = true,
+                )
+            }
+            volume.description?.takeIf { it.isNotBlank() }?.let {
+                InfoRow(stringResource(R.string.volume_mount_label), it, ltrValue = true)
+            }
+            volume.uuid?.takeIf { it.isNotBlank() }?.let {
+                InfoRow(stringResource(R.string.volume_id_label), it, ltrValue = true)
+            }
+            InfoRow(
+                stringResource(R.string.volume_access_label),
+                stringResource(
+                    if (volume.grantKind == GrantKind.SAF_TREE) {
+                        R.string.volume_access_saf
+                    } else {
+                        R.string.volume_access_runtime
+                    },
+                ),
+            )
+            InfoRow(
+                stringResource(R.string.volume_removable_label),
+                stringResource(if (volume.isRemovable) R.string.answer_yes else R.string.answer_no),
+            )
+        }
     }
-    if (state == VolumeState.READY) return
-    Text(
-        text = label,
-        style = MaterialTheme.typography.labelSmall,
-        color = color,
-        maxLines = 1,
-    )
 }
 
+/** The usage colour for the current theme, without threading a colour through every call site. */
 @Composable
-private fun iconFor(kind: VolumeKind) = when (kind) {
-    VolumeKind.INTERNAL -> Icons.Outlined.Storage
-    VolumeKind.SD_CARD -> Icons.Outlined.SdCard
-    VolumeKind.USB -> Icons.Outlined.Usb
-    VolumeKind.EXTERNAL -> Icons.Outlined.Storage
-}
+private fun usageColorOf(fraction: Float): Color = Palette.usageColor(fraction, AppTheme.isDark)

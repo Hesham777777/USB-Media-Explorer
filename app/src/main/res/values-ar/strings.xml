@@ -270,4 +270,41 @@
     <string name="cd_select">تحديد</string>
     <string name="cd_volume_icon">وحدة تخزين</string>
     <string name="cd_clear">مسح</string>
+
+    <!-- إعادة التصميم: وحدات التخزين -->
+    <string name="volume_usb_tag">USB</string>
+    <string name="volume_connected">متصل</string>
+    <string name="volume_not_connected">غير متصل</string>
+    <string name="volume_needs_permission_short">مطلوب صلاحية</string>
+    <string name="volume_remove_grant">إزالة صلاحية الوصول</string>
+    <string name="volume_used_of_total">%1$s من %2$s</string>
+    <string name="volume_free_space">متوفر %1$s</string>
+    <string name="volume_used_label">المستخدم</string>
+    <string name="volume_free_label">الحر</string>
+    <string name="volume_details_group">الوحدة</string>
+    <string name="volume_mount_label">نقطة التحميل</string>
+    <string name="volume_id_label">المعرّف</string>
+    <string name="volume_access_label">طريقة الوصول</string>
+    <string name="volume_access_saf">مجلد ممنوح (إطار الوصول للتخزين)</string>
+    <string name="volume_access_runtime">صلاحية الوسائط</string>
+    <string name="volume_removable_label">قابل للإزالة</string>
+    <string name="volume_state_ready">جاهز</string>
+    <string name="label_state">الحالة</string>
+    <string name="label_filesystem">نظام الملفات</string>
+    <string name="answer_yes">نعم</string>
+    <string name="answer_no">لا</string>
+    <string name="home_volumes_summary">%1$d وحدات • %2$s حرة</string>
+    <string name="home_volumes_summary_one">وحدة واحدة • %1$s حرة</string>
+    <string name="recent_folders_window">آخر ساعتين</string>
+    <string name="quick_transfers">عمليات النقل</string>
+    <string name="quick_all_folders">كل المجلدات</string>
+    <!-- إعادة التصميم: أول تشغيل -->
+    <string name="onboarding_title">جهّز الوصول مرة واحدة</string>
+    <string name="onboarding_body">امنح كل ما يحتاجه التطبيق بخطوة واحدة: الوصول إلى الوسائط لتصفح التخزين الداخلي، والإشعارات لمتابعة عمليات النسخ والنقل. أما الوحدات الخارجية (USB وSD) فتطلب منحًا منفصلًا لكل واحدة عند فتحها فقط.</string>
+    <string name="onboarding_grant_all">منح جميع الأذونات</string>
+    <string name="onboarding_later">ليس الآن</string>
+    <string name="onboarding_permissions_row">الوسائط والإشعارات</string>
+    <string name="permission_strip_title">الوصول إلى الوسائط معطّل</string>
+    <string name="permission_strip_body">اسمح بالصور والفيديو والصوت مرة واحدة لتتمكن من تصفح التخزين الداخلي.</string>
+    <string name="msg_removed_from_recents">أُزيل من الأخيرة</string>
 </resources>

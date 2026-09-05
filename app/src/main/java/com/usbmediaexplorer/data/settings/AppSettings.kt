@@ -47,6 +47,13 @@ enum class ThumbSize(val px: Int) {
     XLARGE(768),
 }
 
+/** How much room each row/tile gets. A dense list shows more files; a large one shows more art. */
+enum class ItemScale(val rowHeight: Int, val thumb: Int, val columnsDelta: Int) {
+    COMPACT(48, 40, 1),
+    NORMAL(64, 52, 0),
+    LARGE(80, 68, -1),
+}
+
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 enum class LanguageMode(val tag: String?) {
@@ -87,8 +94,17 @@ data class AppSettings(
     val defaultSortMode: SortMode = SortMode.NAME_ASC,
     val foldersFirst: Boolean = true,
     val showHiddenFiles: Boolean = false,
+    /** Show the extension next to a file name (`movie.mkv`) instead of the bare name. */
+    val showExtensions: Boolean = true,
+    /** Show size/duration/resolution under each item. Turning it off gives a cleaner grid. */
+    val showMediaInfo: Boolean = true,
+    val itemScale: ItemScale = ItemScale.NORMAL,
     val lazyMetadata: Boolean = true,
     val rememberPerFolderView: Boolean = true,
+
+    // Onboarding
+    /** True once the first-launch permission request has been answered (granted or denied). */
+    val firstRunPermissionsAsked: Boolean = false,
 
     // Playback
     val resumePromptEnabled: Boolean = true,

@@ -8,6 +8,7 @@ import com.usbmediaexplorer.R
 import com.usbmediaexplorer.data.doc.DocNode
 import com.usbmediaexplorer.data.store.RecentEntry
 import com.usbmediaexplorer.data.volume.VolumeInfo
+import com.usbmediaexplorer.data.volume.VolumeKind
 import com.usbmediaexplorer.data.volume.VolumeState
 import com.usbmediaexplorer.di.AppContainer
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -37,6 +39,12 @@ data class HomeUiState(
 
 /** Home screen: storage volumes, quick access and recent media (spec §1, §18). */
 class HomeViewModel(private val container: AppContainer) : ViewModel() {
+
+    private companion object {
+        /** "Recent folders" means the last two hours, not the last hundred entries. */
+        const val RECENT_WINDOW_MS = 2 * 60 * 60 * 1000L
+        const val MAX_RECENT_FOLDERS = 8
+    }
 
     private val _state = MutableStateFlow(HomeUiState())
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
@@ -77,7 +85,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         }
         viewModelScope.launch {
             container.recentStore.recentFolders.collect { entries ->
-                _state.value = _state.value.copy(recentFolders = entries.take(8))
+                _state.value = _state.value.copy(recentFolders = recentWindow(entries))
             }
         }
         viewModelScope.launch {
@@ -90,6 +98,34 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
     fun refresh() {
         viewModelScope.launch { volumeRepository.refresh() }
+    }
+
+    /**
+     * Re-applies the recency window. Called when the screen resumes, so a folder opened three
+     * hours ago disappears from "recent folders" without waiting for the store to emit.
+     */
+    fun refreshRecents() {
+        viewModelScope.launch {
+            val entries = container.recentStore.recentFolders.first()
+            _state.value = _state.value.copy(recentFolders = recentWindow(entries))
+        }
+    }
+
+    /** Folders opened in the last two hours only — the section is a "continue where you were". */
+    private fun recentWindow(entries: List<RecentEntry>): List<RecentEntry> {
+        val cutoff = System.currentTimeMillis() - RECENT_WINDOW_MS
+        return entries.filter { it.lastOpenedAt >= cutoff }.take(MAX_RECENT_FOLDERS)
+    }
+
+    /** Called once the first-launch permission request has been answered, whatever the answer. */
+    fun markFirstRunPermissionsAsked() {
+        viewModelScope.launch { container.settingsRepository.setFirstRunPermissionsAsked(true) }
+    }
+
+    /** The volume the header search button searches: internal first, then any ready volume. */
+    fun searchRoot(): Uri? {
+        val volumes = _state.value.volumes.filter { it.state == VolumeState.READY && it.rootUri != Uri.EMPTY }
+        return (volumes.firstOrNull { it.kind == VolumeKind.INTERNAL } ?: volumes.firstOrNull())?.rootUri
     }
 
     fun setNeedsMediaPermission(value: Boolean) {

@@ -21,6 +21,7 @@ import com.usbmediaexplorer.ui.AppRoot
 import com.usbmediaexplorer.ui.common.LocalAppContainer
 import com.usbmediaexplorer.ui.common.LocalSettings
 import com.usbmediaexplorer.ui.nav.Routes
+import com.usbmediaexplorer.ui.theme.UsbMediaExplorerTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
@@ -56,8 +57,15 @@ class MainActivity : AppCompatActivity() {
 
                 LaunchedEffect(settings.languageMode) { applyLanguage(settings.languageMode) }
 
-                CompositionLocalProvider(LocalSettings provides settings) {
-                    AppRoot(pendingRoute = pendingRoute)
+                // The design system lives here: theme mode, Material You and the semantic tokens are
+                // applied once, above every screen, so no screen can drift into its own colours.
+                UsbMediaExplorerTheme(
+                    themeMode = settings.themeMode,
+                    dynamicColor = settings.dynamicColor,
+                ) {
+                    CompositionLocalProvider(LocalSettings provides settings) {
+                        AppRoot(pendingRoute = pendingRoute)
+                    }
                 }
             }
         }
