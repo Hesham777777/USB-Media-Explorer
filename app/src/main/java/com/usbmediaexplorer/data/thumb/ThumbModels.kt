@@ -1,6 +1,8 @@
 package com.usbmediaexplorer.data.thumb
 
 import com.usbmediaexplorer.data.doc.DocNode
+import com.usbmediaexplorer.data.doc.isImage
+import com.usbmediaexplorer.data.doc.isVideo
 import com.usbmediaexplorer.data.settings.FrameStrategy
 import com.usbmediaexplorer.util.Hashing
 
@@ -40,6 +42,18 @@ data class ThumbRequest(
 
     /** Key used to drop cached entries when the file itself disappears. */
     val nodeKey: String get() = node.key
+
+    /**
+     * Which bucket of the disk cache this request fills. Recorded in the index so the cache screen
+     * can report and clear video frames, image previews and folder covers separately (spec §18).
+     */
+    val cacheKind: String
+        get() = when {
+            folderCover -> ThumbnailCache.KIND_COVER
+            node.isVideo -> ThumbnailCache.KIND_VIDEO
+            node.isImage -> ThumbnailCache.KIND_IMAGE
+            else -> ThumbnailCache.KIND_OTHER
+        }
 
     companion object {
         /** Bumped whenever the extraction pipeline changes, invalidating old cache entries. */

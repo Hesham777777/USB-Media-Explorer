@@ -30,6 +30,8 @@ class ThumbnailCache(
         val nodeKey: String,
         val sizeBytes: Long,
         var lastAccess: Long,
+        /** What produced this bitmap: a video frame, an image thumb, a folder cover, or other. */
+        val kind: String = KIND_OTHER,
     )
 
     private val dir = File(context.cacheDir, DIR_NAME).apply { mkdirs() }
@@ -62,14 +64,40 @@ class ThumbnailCache(
         file
     }
 
-    suspend fun put(key: String, nodeKey: String, bytes: ByteArray): File? = mutex.withLock {
+    suspend fun put(
+        key: String,
+        nodeKey: String,
+        bytes: ByteArray,
+        kind: String = KIND_OTHER,
+    ): File? = mutex.withLock {
         runCatching {
             val file = File(dir, "$key.webp")
             file.writeBytes(bytes)
-            entries[key] = Entry(key, nodeKey, bytes.size.toLong(), System.currentTimeMillis())
+            entries[key] = Entry(key, nodeKey, bytes.size.toLong(), System.currentTimeMillis(), kind)
             dirty = true
             file
         }.getOrNull()
+    }
+
+    /**
+     * Count and bytes per cache kind, for the cache screen (spec §18). Entries written before the
+     * index carried a kind are reported as [KIND_OTHER] rather than being guessed at.
+     */
+    suspend fun statsByKind(): Map<String, KindStat> = mutex.withLock {
+        entries.values.groupBy { it.kind }.mapValues { (_, list) ->
+            KindStat(count = list.size, bytes = list.sumOf { it.sizeBytes })
+        }
+    }
+
+    /** Deletes one kind of cached bitmap only — covers can go while video frames stay. */
+    suspend fun clearKind(kind: String): Int = mutex.withLock {
+        val doomed = entries.values.filter { it.kind == kind }.map { it.key }
+        doomed.forEach { key ->
+            entries.remove(key)
+            runCatching { File(dir, "$key.webp").delete() }
+        }
+        if (doomed.isNotEmpty()) dirty = true
+        doomed.size
     }
 
     suspend fun remove(key: String) = mutex.withLock {
@@ -171,6 +199,7 @@ class ThumbnailCache(
                         put("node", entry.nodeKey)
                         put("size", entry.sizeBytes)
                         put("access", entry.lastAccess)
+                        put("kind", entry.kind)
                     },
                 )
             }
@@ -196,6 +225,9 @@ class ThumbnailCache(
                     nodeKey = obj.optString("node"),
                     sizeBytes = obj.optLong("size"),
                     lastAccess = obj.optLong("access"),
+                    // Older indexes have no kind column; they stay readable and are reported as
+                    // "other" until the entry is regenerated.
+                    kind = obj.optString("kind", KIND_OTHER),
                 )
             }
             // Drop index rows whose file vanished (cache cleared by the OS).
@@ -204,8 +236,16 @@ class ThumbnailCache(
         }
     }
 
-    private companion object {
-        const val DIR_NAME = "thumbs"
-        const val INDEX_NAME = "thumbs_index.json"
+    /** Cache size and entry count for one kind. */
+    data class KindStat(val count: Int, val bytes: Long)
+
+    companion object {
+        const val KIND_VIDEO = "video"
+        const val KIND_IMAGE = "image"
+        const val KIND_COVER = "cover"
+        const val KIND_OTHER = "other"
+
+        private const val DIR_NAME = "thumbs"
+        private const val INDEX_NAME = "thumbs_index.json"
     }
 }

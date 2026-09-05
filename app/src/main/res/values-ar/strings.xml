@@ -437,4 +437,15 @@
     <string name="search_start_body">اكتب اسمًا أو اختر عامل تصفية: الأفلام والمسلسلات تُكتشف من الملصق الموجود داخل مجلدها.</string>
     <string name="search_no_results_body">جرّب اسمًا أقصر، أو امسح عوامل التصفية للبحث في كل شيء مرة أخرى.</string>
     <string name="ops_no_jobs_body">عمليات النسخ والنقل والحذف والضغط وفك الضغط تعرض تقدّمها هنا أثناء تنفيذها.</string>
+
+    <!-- إعادة التصميم: أقسام الذاكرة المؤقتة -->
+    <string name="cache_kind_video">مصغرات الفيديو</string>
+    <string name="cache_kind_image">معاينات الصور</string>
+    <string name="cache_kind_cover">أغلفة المجلدات</string>
+    <string name="cache_kind_other">معاينات أخرى</string>
+    <string name="cache_kind_detail">%1$d عنصر • %2$s</string>
+    <!-- إعادة التصميم: عوامل تصفية البحث -->
+    <string name="filter_recent">آخر ٧ أيام</string>
+    <!-- إعادة التصميم: التحديد -->
+    <string name="action_select_content">تحديد محتوى المجلد</string>
 </resources>

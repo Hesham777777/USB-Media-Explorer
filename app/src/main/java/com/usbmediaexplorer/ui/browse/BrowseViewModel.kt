@@ -36,9 +36,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Which slice of the current folder the browser is showing (spec §10).
@@ -128,6 +130,11 @@ class BrowseViewModel(
     private val container: AppContainer,
     private val initialUri: String,
 ) : ViewModel() {
+
+    private companion object {
+        /** How long "select folder content" waits for the folder to appear before giving up. */
+        const val SELECT_ON_LOAD_TIMEOUT_MS = 4_000L
+    }
 
     private val context: Context = container.appContext
     private val docRepository: DocRepository = container.docRepository
@@ -439,6 +446,23 @@ class BrowseViewModel(
         if (!current.remove(node.key)) current += node.key
         selection.value = current
         selecting.value = current.isNotEmpty()
+    }
+
+    /**
+     * "Select folder content" (spec §8): the folder is opened with everything already selected.
+     * The selection waits for the combined state to carry this folder's children, otherwise it
+     * would run against the previous folder's list.
+     */
+    fun selectAllOnLoad() {
+        viewModelScope.launch {
+            val target = currentNode.value?.uri ?: return@launch
+            // Bounded wait: if the folder cannot be read (drive pulled, grant revoked) the state
+            // never settles, and this must not stay pending forever.
+            val settled = withTimeoutOrNull(SELECT_ON_LOAD_TIMEOUT_MS) {
+                state.first { !it.loading && it.node?.uri == target }
+            }
+            if (settled != null) selectAll()
+        }
     }
 
     fun selectAll() {

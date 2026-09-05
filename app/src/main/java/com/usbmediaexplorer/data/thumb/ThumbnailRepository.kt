@@ -104,7 +104,7 @@ class ThumbnailRepository(
 
             val bytes = generate(request, kind)
             if (bytes != null) {
-                cache.put(request.cacheKey, request.nodeKey, bytes)
+                cache.put(request.cacheKey, request.nodeKey, bytes, request.cacheKind)
                 cache.schedulePersist()
                 maybePrune(s.cacheLimitBytes)
                 return@withLock bytes
@@ -113,7 +113,7 @@ class ThumbnailRepository(
                 // Negative cache. A folder with no image inside must not be rescanned on every
                 // scroll pass or every return to the screen — that is what keeps navigation
                 // smooth on a slow USB stick.
-                cache.put(request.cacheKey, request.nodeKey, NO_COVER)
+                cache.put(request.cacheKey, request.nodeKey, NO_COVER, request.cacheKind)
                 cache.schedulePersist()
             }
             null
@@ -184,6 +184,16 @@ class ThumbnailRepository(
     suspend fun cacheSizeBytes(): Long = cache.sizeBytes()
 
     suspend fun cacheEntryCount(): Int = cache.count()
+
+    /** Per-kind cache statistics: video frames, image previews, folder covers, other. */
+    suspend fun cacheStatsByKind(): Map<String, ThumbnailCache.KindStat> = cache.statsByKind()
+
+    /** Clears one kind only and returns how many entries were dropped. */
+    suspend fun clearCacheKind(kind: String): Int {
+        val removed = cache.clearKind(kind)
+        cache.schedulePersist()
+        return removed
+    }
 
     suspend fun clearCache(): Int {
         val removed = cache.clear()

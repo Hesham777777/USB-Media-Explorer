@@ -71,6 +71,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.usbmediaexplorer.R
 import com.usbmediaexplorer.data.settings.AppSettings
+import com.usbmediaexplorer.data.thumb.ThumbnailCache
 import com.usbmediaexplorer.data.settings.AspectMode
 import com.usbmediaexplorer.data.settings.FrameStrategy
 import com.usbmediaexplorer.data.settings.ItemScale
@@ -112,6 +113,9 @@ fun SettingsScreen(snackbarHostState: SnackbarHostState) {
 
     var cacheBytes by remember { mutableLongStateOf(0L) }
     var cacheCount by remember { mutableIntStateOf(0) }
+    var cacheKinds by remember {
+        mutableStateOf<Map<String, ThumbnailCache.KindStat>>(emptyMap())
+    }
     var working by remember { mutableStateOf(false) }
     var picker by remember { mutableStateOf<Picker?>(null) }
     var confirm by remember { mutableStateOf<Confirm?>(null) }
@@ -139,6 +143,7 @@ fun SettingsScreen(snackbarHostState: SnackbarHostState) {
     val refreshCache: suspend () -> Unit = {
         cacheBytes = container.thumbnailRepository.cacheSizeBytes()
         cacheCount = container.thumbnailRepository.cacheEntryCount()
+        cacheKinds = container.thumbnailRepository.cacheStatsByKind()
     }
     LaunchedEffect(Unit) {
         refreshCache()
@@ -391,6 +396,28 @@ fun SettingsScreen(snackbarHostState: SnackbarHostState) {
                     value = Formatters.size(cacheBytes),
                     subtitle = stringResource(R.string.items_count, cacheCount),
                 )
+                // One row per kind, so the user can drop folder covers without losing the frames
+                // they already waited for (spec §18).
+                CacheKind.entries.forEach { kind ->
+                    val stat = cacheKinds[kind.key]
+                    if (stat != null && stat.count > 0) {
+                        CacheKindRow(
+                            label = stringResource(kind.labelRes),
+                            count = stat.count,
+                            bytes = stat.bytes,
+                            enabled = !working,
+                            onClear = {
+                                scope.launch {
+                                    working = true
+                                    val removed = container.thumbnailRepository.clearCacheKind(kind.key)
+                                    working = false
+                                    refreshCache()
+                                    toast("$clearedLabel ($removed)")
+                                }
+                            },
+                        )
+                    }
+                }
                 ClickRow(
                     title = stringResource(R.string.setting_cache_limit),
                     subtitle = stringResource(R.string.setting_cache_limit_desc),
@@ -661,6 +688,14 @@ private enum class Picker {
 
 private enum class Confirm { CACHE, RECENTS, FAVORITES }
 
+/** The cache buckets the user can clear on their own. Keys match the on-disk index. */
+private enum class CacheKind(val key: String, val labelRes: Int) {
+    VIDEO(ThumbnailCache.KIND_VIDEO, R.string.cache_kind_video),
+    IMAGE(ThumbnailCache.KIND_IMAGE, R.string.cache_kind_image),
+    COVER(ThumbnailCache.KIND_COVER, R.string.cache_kind_cover),
+    OTHER(ThumbnailCache.KIND_OTHER, R.string.cache_kind_other),
+}
+
 /* ---------------------------------------------------------------------------
  * Labels
  * ------------------------------------------------------------------------- */
@@ -906,6 +941,47 @@ private fun ActionRow(
                     )
                 }
             }
+        }
+    }
+}
+
+/** One cache bucket: what it is, how much it holds, and a single clear action. */
+@Composable
+private fun CacheKindRow(
+    label: String,
+    count: Int,
+    bytes: Long,
+    enabled: Boolean,
+    onClear: () -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(start = AppSpacing.lg, end = AppSpacing.sm, top = AppSpacing.xs, bottom = AppSpacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                text = stringResource(R.string.cache_kind_detail, count, Formatters.size(bytes)).bidiLtr(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        TextButton(onClick = onClear, enabled = enabled) {
+            Text(
+                text = stringResource(R.string.action_clear),
+                style = MaterialTheme.typography.labelLarge,
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.outline
+                },
+            )
         }
     }
 }

@@ -18,7 +18,13 @@ object Routes {
     const val ARG_URI = "uri"
     const val ARG_FOLDER = "folder"
 
-    fun browse(uri: Uri): String = "$BROWSE?$ARG_URI=${Uri.encode(uri.toString())}"
+    /** Set when the browser should open a folder with every item already selected (spec §8). */
+    const val ARG_SELECT = "select"
+
+    fun browse(uri: Uri, selectAll: Boolean = false): String = buildString {
+        append("$BROWSE?$ARG_URI=${Uri.encode(uri.toString())}")
+        if (selectAll) append("&$ARG_SELECT=true")
+    }
 
     fun player(uri: Uri, folderUri: Uri?): String = buildString {
         append("$PLAYER?$ARG_URI=${Uri.encode(uri.toString())}")
@@ -32,7 +38,7 @@ object Routes {
 
     fun search(rootUri: Uri): String = "$SEARCH?$ARG_URI=${Uri.encode(rootUri.toString())}"
 
-    fun browseRoute(): String = "$BROWSE?$ARG_URI={$ARG_URI}"
+    fun browseRoute(): String = "$BROWSE?$ARG_URI={$ARG_URI}&$ARG_SELECT={$ARG_SELECT}"
     fun playerRoute(): String = "$PLAYER?$ARG_URI={$ARG_URI}&$ARG_FOLDER={$ARG_FOLDER}"
     fun imageRoute(): String = "$IMAGE?$ARG_URI={$ARG_URI}&$ARG_FOLDER={$ARG_FOLDER}"
     fun searchRoute(): String = "$SEARCH?$ARG_URI={$ARG_URI}"
@@ -44,6 +50,9 @@ class AppNavigator(private val navController: NavHostController) {
     fun openVolume(uri: Uri) = navController.navigate(Routes.browse(uri))
 
     fun openFolder(uri: Uri) = navController.navigate(Routes.browse(uri))
+
+    /** Opens a folder and selects its content — the "select content" context action. */
+    fun openFolderSelecting(uri: Uri) = navController.navigate(Routes.browse(uri, selectAll = true))
 
     fun playVideo(uri: Uri, folderUri: Uri? = null) = navController.navigate(Routes.player(uri, folderUri))
 

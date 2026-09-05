@@ -50,10 +50,15 @@ fun AppNavHost(
                     type = NavType.StringType
                     defaultValue = ""
                 },
+                navArgument(Routes.ARG_SELECT) {
+                    type = NavType.BoolType
+                    defaultValue = false
+                },
             ),
         ) { entry ->
             BrowseScreen(
                 uri = entry.arguments?.getString(Routes.ARG_URI).orEmpty(),
+                selectContent = entry.arguments?.getBoolean(Routes.ARG_SELECT) == true,
                 snackbarHostState = snackbarHostState,
             )
         }

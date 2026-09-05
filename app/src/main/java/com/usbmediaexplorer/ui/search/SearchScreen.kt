@@ -264,4 +264,7 @@ private fun filterLabel(filter: SearchFilter): Int = when (filter) {
     SearchFilter.PHOTOS -> R.string.filter_photos
     SearchFilter.MUSIC -> R.string.filter_music
     SearchFilter.LARGE -> R.string.filter_large
+    SearchFilter.FOLDERS -> R.string.filter_folders
+    SearchFilter.FILES -> R.string.filter_files
+    SearchFilter.RECENT -> R.string.filter_recent
 }

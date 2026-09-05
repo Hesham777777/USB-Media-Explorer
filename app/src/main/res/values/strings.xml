@@ -438,4 +438,15 @@
     <string name="search_start_body">Type a name, or pick a filter: movies and series are found by the poster inside their folder.</string>
     <string name="search_no_results_body">Try a shorter name, or clear the filters to search everything again.</string>
     <string name="ops_no_jobs_body">Copy, move, delete, compress and extract operations show their progress here while they run.</string>
+
+    <!-- Redesign: cache buckets -->
+    <string name="cache_kind_video">Video thumbnails</string>
+    <string name="cache_kind_image">Image previews</string>
+    <string name="cache_kind_cover">Folder covers</string>
+    <string name="cache_kind_other">Other previews</string>
+    <string name="cache_kind_detail">%1$d items • %2$s</string>
+    <!-- Redesign: search filters -->
+    <string name="filter_recent">Last 7 days</string>
+    <!-- Redesign: selection -->
+    <string name="action_select_content">Select folder content</string>
 </resources>

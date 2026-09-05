@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Sort
@@ -295,6 +296,7 @@ fun ItemActionsSheet(
     favorite: Boolean = false,
     onOpenWith: ((DocItem) -> Unit)? = null,
     onShortcut: ((DocItem) -> Unit)? = null,
+    onSelectContent: ((DocItem) -> Unit)? = null,
 ) {
     val single = items.singleOrNull()
     val node = single?.node
@@ -348,6 +350,18 @@ fun ItemActionsSheet(
                         onDismiss()
                     },
                 )
+                // Folders: open with everything selected, so a whole folder can be copied or
+                // deleted in two taps instead of a long-press and a select-all.
+                if (node != null && node.isDirectory && onSelectContent != null) {
+                    SheetAction(
+                        icon = Icons.Outlined.SelectAll,
+                        label = stringResource(R.string.action_select_content),
+                        onClick = {
+                            onSelectContent(single)
+                            onDismiss()
+                        },
+                    )
+                }
                 if (node != null && !node.isDirectory && onOpenWith != null) {
                     SheetAction(
                         icon = Icons.Outlined.OpenInNew,

@@ -22,10 +22,21 @@ enum class SearchFilter {
     PHOTOS,
     MUSIC,
     LARGE,
+    FOLDERS,
+    FILES,
+    RECENT,
     ;
 
     val minSizeBytes: Long
         get() = if (this == LARGE) 1L * 1024 * 1024 * 1024 else 0L
+
+    /** "By date" filtering (spec §10): everything modified in the last week. */
+    val modifiedAfterMillis: Long
+        get() = if (this == RECENT) {
+            System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000
+        } else {
+            0L
+        }
 }
 
 data class SearchQuery(
@@ -113,7 +124,8 @@ class SearchEngine(
         val minSize = maxOf(query.minSizeBytes, query.filter.minSizeBytes)
         if (minSize > 0 && node.size < minSize) return false
         if (query.maxSizeBytes < Long.MAX_VALUE && node.size > query.maxSizeBytes) return false
-        if (query.modifiedAfter > 0 && node.lastModified < query.modifiedAfter) return false
+        val minModified = maxOf(query.modifiedAfter, query.filter.modifiedAfterMillis)
+        if (minModified > 0 && node.lastModified < minModified) return false
 
         return when (query.filter) {
             SearchFilter.ALL -> true
@@ -123,6 +135,10 @@ class SearchEngine(
             SearchFilter.PHOTOS -> kind == MediaKind.IMAGE
             SearchFilter.MUSIC -> kind == MediaKind.AUDIO
             SearchFilter.LARGE -> !node.isDirectory
+            SearchFilter.FOLDERS -> node.isDirectory
+            SearchFilter.FILES -> !node.isDirectory
+            // The date window was already applied above.
+            SearchFilter.RECENT -> true
         }
     }
 

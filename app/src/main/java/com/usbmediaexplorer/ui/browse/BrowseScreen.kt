@@ -121,7 +121,11 @@ import kotlinx.coroutines.launch
  * overflow menu rather than competing for space with the files.
  */
 @Composable
-fun BrowseScreen(uri: String, snackbarHostState: SnackbarHostState) {
+fun BrowseScreen(
+    uri: String,
+    snackbarHostState: SnackbarHostState,
+    selectContent: Boolean = false,
+) {
     val container = LocalAppContainer.current
     val navigator = LocalNavigator.current
     val context = LocalContext.current
@@ -158,7 +162,11 @@ fun BrowseScreen(uri: String, snackbarHostState: SnackbarHostState) {
     var showOverflow by remember { mutableStateOf(false) }
     var showSelectionOverflow by remember { mutableStateOf(false) }
 
-    LaunchedEffect(uri) { viewModel.load(uri) }
+    LaunchedEffect(uri) {
+        viewModel.load(uri)
+        // Arriving from "select folder content": everything in this folder starts selected.
+        if (selectContent) viewModel.selectAllOnLoad()
+    }
     LaunchedEffect(query) { viewModel.setQuery(query) }
     LaunchedEffect(snackbarHostState) {
         viewModel.messages.collect { message -> snackbarHostState.showSnackbar(message) }
@@ -649,6 +657,7 @@ fun BrowseScreen(uri: String, snackbarHostState: SnackbarHostState) {
             favorite = targets.firstOrNull()?.favorite == true,
             onOpen = { targets.firstOrNull()?.let { openItem(it) } },
             onOpenWith = { item -> openWith(item) },
+            onSelectContent = { item -> navigator.openFolderSelecting(item.node.uri) },
             onShortcut = { item ->
                 if (!Shortcuts.pin(context, item.node)) {
                     toast(context.getString(R.string.msg_shortcut_unsupported))
