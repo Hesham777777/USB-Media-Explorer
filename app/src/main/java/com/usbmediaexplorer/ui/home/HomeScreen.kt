@@ -1,5 +1,6 @@
 package com.usbmediaexplorer.ui.home
 
+import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -91,12 +92,34 @@ fun HomeScreen(snackbarHostState: SnackbarHostState) {
     ) {
         // Re-read the real state instead of trusting the result map: on Android 14 the user may
         // choose partial access, and the map alone does not tell media access from audio-only.
-        viewModel.onMediaPermissionResult(Permissions.hasMediaAccess(context))
+        val granted = Permissions.hasMediaAccess(context)
+        val activity = context as? Activity
+        viewModel.onMediaPermissionResult(
+            granted = granted,
+            blocked = !granted && activity != null && Permissions.permanentlyDenied(activity),
+        )
     }
 
     val syncPermissionState = {
-        viewModel.setNeedsMediaPermission(!Permissions.hasMediaAccess(context))
+        val granted = Permissions.hasMediaAccess(context)
+        viewModel.setNeedsMediaPermission(!granted)
+        // Coming back from the system settings: a grant there must clear the blocked flag.
+        if (granted) viewModel.setMediaPermissionBlocked(false)
         viewModel.refresh()
+    }
+
+    /**
+     * Asks for the media permission, or opens the app settings when Android no longer shows the
+     * dialog — otherwise the button would silently do nothing, which reads as a broken grant flow.
+     */
+    fun requestMediaPermission() {
+        val activity = context as? Activity
+        if (state.mediaPermissionBlocked && activity != null) {
+            runCatching { context.startActivity(Permissions.appSettingsIntent(context.packageName)) }
+                .onFailure { permissionLauncher.launch(Permissions.runtimePermissions(context)) }
+        } else {
+            permissionLauncher.launch(Permissions.runtimePermissions(context))
+        }
     }
 
     LaunchedEffect(Unit) { syncPermissionState() }
@@ -122,7 +145,7 @@ fun HomeScreen(snackbarHostState: SnackbarHostState) {
     fun requestGrant(volume: VolumeInfo) {
         if (volume.grantKind == GrantKind.RUNTIME_MEDIA) {
             // Internal storage: the ordinary runtime permission dialog, not the SAF picker.
-            permissionLauncher.launch(Permissions.runtimePermissions(context))
+            requestMediaPermission()
             return
         }
         val intent = viewModel.grantIntentFor(volume)
@@ -183,7 +206,8 @@ fun HomeScreen(snackbarHostState: SnackbarHostState) {
             if (state.needsMediaPermission) {
                 item(key = "media-permission") {
                     PermissionCard(
-                        onRequest = { permissionLauncher.launch(Permissions.runtimePermissions(context)) },
+                        blocked = state.mediaPermissionBlocked,
+                        onRequest = { requestMediaPermission() },
                     )
                 }
             }
@@ -295,7 +319,7 @@ private fun UsbBanner(volume: VolumeInfo, onGrant: () -> Unit) {
 }
 
 @Composable
-private fun PermissionCard(onRequest: () -> Unit) {
+private fun PermissionCard(blocked: Boolean, onRequest: () -> Unit) {
     Card(shape = RoundedCornerShape(20.dp)) {
         Column(Modifier.padding(16.dp)) {
             Text(
@@ -304,13 +328,19 @@ private fun PermissionCard(onRequest: () -> Unit) {
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                stringResource(R.string.dialog_permission_body),
+                stringResource(
+                    if (blocked) R.string.permission_blocked_body else R.string.dialog_permission_body,
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(10.dp))
             TextButton(onClick = onRequest) {
-                Text(stringResource(R.string.action_grant_access))
+                Text(
+                    stringResource(
+                        if (blocked) R.string.action_open_settings else R.string.action_grant_access,
+                    ),
+                )
             }
         }
     }

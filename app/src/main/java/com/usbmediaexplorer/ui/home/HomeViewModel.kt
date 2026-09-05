@@ -30,6 +30,8 @@ data class HomeUiState(
     val recentFolders: List<RecentEntry> = emptyList(),
     val favoriteCount: Int = 0,
     val needsMediaPermission: Boolean = false,
+    /** Android refuses to show the dialog any more: the only way left is the app settings. */
+    val mediaPermissionBlocked: Boolean = false,
     val usbWaitingForGrant: VolumeInfo? = null,
 )
 
@@ -94,6 +96,12 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         _state.value = _state.value.copy(needsMediaPermission = value)
     }
 
+    fun setMediaPermissionBlocked(value: Boolean) {
+        if (_state.value.mediaPermissionBlocked != value) {
+            _state.value = _state.value.copy(mediaPermissionBlocked = value)
+        }
+    }
+
     /** Intent that asks Android for a one-time grant on this volume (spec §1). */
     fun grantIntentFor(volume: VolumeInfo): Intent? = volume.grantIntent
         ?: Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
@@ -119,8 +127,11 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     /** [granted] is re-read from the system by the caller, never inferred from the result map. */
-    fun onMediaPermissionResult(granted: Boolean) {
-        _state.value = _state.value.copy(needsMediaPermission = !granted)
+    fun onMediaPermissionResult(granted: Boolean, blocked: Boolean = false) {
+        _state.value = _state.value.copy(
+            needsMediaPermission = !granted,
+            mediaPermissionBlocked = !granted && blocked,
+        )
         // Always refresh: a partial grant ("Select photos") or a denial both change what the
         // internal storage card can show.
         refresh()

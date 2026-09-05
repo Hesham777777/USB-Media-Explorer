@@ -1,9 +1,14 @@
 package com.usbmediaexplorer.util
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
 /**
@@ -66,6 +71,22 @@ object Permissions {
 
         else -> granted(context, Manifest.permission.READ_EXTERNAL_STORAGE)
     }
+
+    /**
+     * True when a media permission is denied *and* Android will no longer show a dialog for it
+     * (the user picked "Don't ask again"). Only meaningful right after a request result — before
+     * any request the rationale flag is false as well.
+     */
+    fun permanentlyDenied(activity: Activity): Boolean =
+        missingMediaPermissions(activity).any { permission ->
+            !ActivityCompat.shouldShowRequestPermissionRationale(activity, permission)
+        }
+
+    /** This app's page in the system settings, the only way out of a permanent denial. */
+    fun appSettingsIntent(packageName: String): Intent = Intent(
+        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+        Uri.fromParts("package", packageName, null),
+    )
 
     fun missingMediaPermissions(context: Context): List<String> =
         mediaPermissions().filter {
