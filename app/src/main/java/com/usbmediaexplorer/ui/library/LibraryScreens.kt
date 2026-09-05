@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,11 +20,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.Favorite
+import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.History
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -31,15 +35,20 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -49,20 +58,35 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.usbmediaexplorer.R
 import com.usbmediaexplorer.data.doc.DocNode
 import com.usbmediaexplorer.data.doc.MediaKind
+import com.usbmediaexplorer.data.settings.FOLDER_COVER_ASPECT
 import com.usbmediaexplorer.data.store.FavoriteEntry
 import com.usbmediaexplorer.data.store.RecentEntry
 import com.usbmediaexplorer.di.AppContainer
+import com.usbmediaexplorer.ui.common.ConfirmDialog
 import com.usbmediaexplorer.ui.common.LocalAppContainer
-import com.usbmediaexplorer.ui.nav.LocalNavigator
 import com.usbmediaexplorer.ui.common.MediaThumbnail
+import com.usbmediaexplorer.ui.common.PressableSurface
+import com.usbmediaexplorer.ui.common.SkeletonRows
+import com.usbmediaexplorer.ui.common.StateBlock
+import com.usbmediaexplorer.ui.common.bidiLtr
+import com.usbmediaexplorer.ui.common.bidiName
 import com.usbmediaexplorer.ui.common.viewModelFactory
+import com.usbmediaexplorer.ui.nav.LocalNavigator
+import com.usbmediaexplorer.ui.theme.AppRadius
+import com.usbmediaexplorer.ui.theme.AppSpacing
+import com.usbmediaexplorer.ui.theme.AppTheme
 import com.usbmediaexplorer.util.Formatters
+import com.usbmediaexplorer.util.Intents
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+/* ===========================================================================
+ * Favorites (spec §19)
+ * ========================================================================= */
 
 data class FavoritesState(
     val entries: List<FavoriteEntry> = emptyList(),
@@ -71,7 +95,10 @@ data class FavoritesState(
     val loading: Boolean = true,
 )
 
-/** Favorites (spec §17). Entries pointing at unplugged drives are reported, not silently dropped. */
+/**
+ * Favorites. Entries pointing at an unplugged drive are reported in their own section instead of
+ * disappearing silently — the user still knows the file exists, and can drop the dead entry.
+ */
 class FavoritesViewModel(private val container: AppContainer) : ViewModel() {
 
     private val _state = MutableStateFlow(FavoritesState())
@@ -110,14 +137,17 @@ class FavoritesViewModel(private val container: AppContainer) : ViewModel() {
         val keys = _state.value.missing.map { it.key }.toSet()
         viewModelScope.launch { container.favoritesStore.removeAll(keys) }
     }
+
+    /** Share a favourite without leaving the screen; returns false when nothing can handle it. */
+    fun shareUri(node: DocNode): Uri? = container.docRepository.externalUri(node)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-@Suppress("UNUSED_PARAMETER")
 fun FavoritesScreen(snackbarHostState: SnackbarHostState) {
     val container = LocalAppContainer.current
     val navigator = LocalNavigator.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val viewModel: FavoritesViewModel = viewModel(
         factory = viewModelFactory { FavoritesViewModel(container) },
     )
@@ -125,22 +155,21 @@ fun FavoritesScreen(snackbarHostState: SnackbarHostState) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                navigationIcon = {
-                    IconButton(onClick = { navigator.back() }) {
-                        Icon(
-                            Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back),
-                        )
-                    }
+            LibraryTopBar(
+                title = stringResource(R.string.section_favorites),
+                subtitle = if (state.nodes.isEmpty()) {
+                    null
+                } else {
+                    stringResource(R.string.items_count, state.nodes.size)
                 },
-                title = { Text(stringResource(R.string.section_favorites)) },
+                onBack = { navigator.back() },
                 actions = {
                     if (state.missing.isNotEmpty()) {
                         IconButton(onClick = { viewModel.removeMissing() }) {
                             Icon(
-                                Icons.Outlined.Delete,
-                                contentDescription = stringResource(R.string.action_delete),
+                                Icons.Outlined.DeleteSweep,
+                                contentDescription = stringResource(R.string.action_remove_unavailable),
+                                tint = MaterialTheme.colorScheme.error,
                             )
                         }
                     }
@@ -153,15 +182,26 @@ fun FavoritesScreen(snackbarHostState: SnackbarHostState) {
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            if (state.nodes.isEmpty() && !state.loading) {
-                EmptyHint(
-                    icon = { Icon(Icons.Outlined.Favorite, contentDescription = null, modifier = Modifier.size(48.dp)) },
-                    text = stringResource(R.string.section_favorites),
+            when {
+                state.loading -> SkeletonRows(count = 6)
+
+                state.nodes.isEmpty() && state.missing.isEmpty() -> StateBlock(
+                    icon = Icons.Outlined.Favorite,
+                    title = stringResource(R.string.empty_favorites_title),
+                    body = stringResource(R.string.empty_favorites_body),
+                    tint = MaterialTheme.colorScheme.primary,
+                    container = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.align(Alignment.Center),
                 )
-            } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+
+                else -> LazyColumn(
+                    contentPadding = PaddingValues(
+                        start = AppSpacing.lg,
+                        end = AppSpacing.lg,
+                        top = AppSpacing.sm,
+                        bottom = AppSpacing.xxl,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(AppSpacing.sm),
                 ) {
                     items(state.nodes, key = { it.key }) { node ->
                         val entry = state.entries.firstOrNull { it.uri == node.uri.toString() }
@@ -177,32 +217,70 @@ fun FavoritesScreen(snackbarHostState: SnackbarHostState) {
                                 }
                             },
                             trailing = {
+                                if (!node.isDirectory) {
+                                    IconButton(
+                                        onClick = {
+                                            val uri = viewModel.shareUri(node)
+                                            val shared = uri != null &&
+                                                Intents.share(context, listOf(uri), node.mimeType)
+                                            if (!shared) {
+                                                scope.launch {
+                                                    snackbarHostState.showSnackbar(
+                                                        context.getString(R.string.msg_shared_failed),
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier.size(36.dp),
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.Share,
+                                            contentDescription = stringResource(R.string.action_share),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
+                                }
                                 if (entry != null) {
-                                    IconButton(onClick = { viewModel.remove(entry) }) {
+                                    IconButton(
+                                        onClick = { viewModel.remove(entry) },
+                                        modifier = Modifier.size(36.dp),
+                                    ) {
                                         Icon(
                                             Icons.Outlined.Favorite,
                                             contentDescription = stringResource(R.string.action_unfavorite),
                                             tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp),
                                         )
                                     }
                                 }
                             },
+                            modifier = Modifier.animateItem(),
                         )
                     }
+
                     if (state.missing.isNotEmpty()) {
                         item(key = "missing-header") {
-                            Text(
-                                text = stringResource(R.string.volume_unmounted),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
-                            )
+                            Row(
+                                Modifier.padding(top = AppSpacing.lg, bottom = AppSpacing.xs),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    Icons.Outlined.WarningAmber,
+                                    contentDescription = null,
+                                    tint = AppTheme.extended.warning,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                                Spacer(Modifier.width(AppSpacing.sm))
+                                Text(
+                                    text = stringResource(R.string.favorites_unavailable_title),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                         items(state.missing, key = { "missing-${it.key}" }) { entry ->
-                            MissingRow(
-                                entry = entry,
-                                onRemove = { viewModel.remove(entry) },
-                            )
+                            MissingRow(entry = entry, onRemove = { viewModel.remove(entry) })
                         }
                     }
                 }
@@ -211,13 +289,16 @@ fun FavoritesScreen(snackbarHostState: SnackbarHostState) {
     }
 }
 
+/* ===========================================================================
+ * Recent (spec §20): watched videos and opened folders are never mixed
+ * ========================================================================= */
+
 data class RecentState(
     val videos: List<RecentEntry> = emptyList(),
     val folders: List<RecentEntry> = emptyList(),
     val tab: Int = 0,
 )
 
-/** "Last files" screen (spec §18). */
 class RecentViewModel(private val container: AppContainer) : ViewModel() {
 
     private val _state = MutableStateFlow(RecentState())
@@ -252,7 +333,6 @@ class RecentViewModel(private val container: AppContainer) : ViewModel() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecentScreen() {
     val container = LocalAppContainer.current
@@ -261,22 +341,27 @@ fun RecentScreen() {
         factory = viewModelFactory { RecentViewModel(container) },
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var confirmClear by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                navigationIcon = {
-                    IconButton(onClick = { navigator.back() }) {
-                        Icon(
-                            Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back),
-                        )
-                    }
+            LibraryTopBar(
+                title = stringResource(R.string.section_recent),
+                subtitle = if (state.tab == 0) {
+                    stringResource(R.string.items_count, state.videos.size)
+                } else {
+                    stringResource(R.string.items_count, state.folders.size)
                 },
-                title = { Text(stringResource(R.string.section_recent)) },
+                onBack = { navigator.back() },
                 actions = {
-                    IconButton(onClick = { viewModel.clearAll() }) {
-                        Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.action_delete))
+                    if (state.videos.isNotEmpty() || state.folders.isNotEmpty()) {
+                        IconButton(onClick = { confirmClear = true }) {
+                            Icon(
+                                Icons.Outlined.DeleteSweep,
+                                contentDescription = stringResource(R.string.action_clear_all),
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        }
                     }
                 },
             )
@@ -287,51 +372,158 @@ fun RecentScreen() {
                 .fillMaxSize()
                 .padding(padding),
         ) {
+            // Two histories, two tabs: a video thumbnail and a folder cover never share a list.
             Row(
-                Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                Modifier.padding(horizontal = AppSpacing.lg, vertical = AppSpacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm),
             ) {
-                FilterChip(
+                TabChip(
+                    label = stringResource(R.string.recent_videos),
+                    count = state.videos.size,
                     selected = state.tab == 0,
                     onClick = { viewModel.setTab(0) },
-                    label = { Text(stringResource(R.string.recent_videos)) },
                 )
-                FilterChip(
+                TabChip(
+                    label = stringResource(R.string.recent_folders),
+                    count = state.folders.size,
                     selected = state.tab == 1,
                     onClick = { viewModel.setTab(1) },
-                    label = { Text(stringResource(R.string.recent_folders)) },
                 )
             }
+
             val entries = if (state.tab == 0) state.videos else state.folders
             if (entries.isEmpty()) {
-                EmptyHint(
-                    icon = { Icon(Icons.Outlined.History, contentDescription = null, modifier = Modifier.size(48.dp)) },
-                    text = stringResource(R.string.section_recent),
+                StateBlock(
+                    icon = if (state.tab == 0) Icons.Outlined.History else Icons.Outlined.Folder,
+                    title = stringResource(
+                        if (state.tab == 0) {
+                            R.string.empty_recent_videos
+                        } else {
+                            R.string.empty_recent_folders
+                        },
+                    ),
+                    body = stringResource(R.string.empty_recent_body),
+                    modifier = Modifier.fillMaxSize(),
                 )
             } else {
                 LazyColumn(
-                    contentPadding = PaddingValues(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(
+                        start = AppSpacing.lg,
+                        end = AppSpacing.lg,
+                        top = AppSpacing.xs,
+                        bottom = AppSpacing.xxl,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(AppSpacing.sm),
                 ) {
                     items(entries, key = { it.key }) { entry ->
                         RecentRow(
                             entry = entry,
                             onClick = {
-                                val uri = runCatching { Uri.parse(entry.uri) }.getOrNull() ?: return@RecentRow
-                                if (entry.isDirectory) navigator.openFolder(uri) else navigator.playVideo(uri, null)
+                                val uri = runCatching { Uri.parse(entry.uri) }.getOrNull()
+                                    ?: return@RecentRow
+                                if (entry.isDirectory) {
+                                    navigator.openFolder(uri)
+                                } else {
+                                    navigator.playVideo(uri, null)
+                                }
                             },
                             onRemove = { viewModel.remove(entry) },
+                            modifier = Modifier.animateItem(),
                         )
                     }
                 }
             }
         }
     }
+
+    if (confirmClear) {
+        ConfirmDialog(
+            title = stringResource(R.string.dialog_clear_recents_title),
+            body = stringResource(R.string.dialog_clear_data_body),
+            confirmLabel = stringResource(R.string.action_clear_all),
+            destructive = true,
+            onConfirm = {
+                viewModel.clearAll()
+                confirmClear = false
+            },
+            onDismiss = { confirmClear = false },
+        )
+    }
+}
+
+/* ===========================================================================
+ * Shared rows
+ * ========================================================================= */
+
+@Composable
+private fun LibraryTopBar(
+    title: String,
+    subtitle: String?,
+    onBack: () -> Unit,
+    actions: @Composable () -> Unit,
+) {
+    TopAppBar(
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(
+                    Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = stringResource(R.string.action_back),
+                )
+            }
+        },
+        title = {
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
+            }
+        },
+        actions = actions,
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.background,
+            scrolledContainerColor = MaterialTheme.colorScheme.background,
+        ),
+    )
 }
 
 @Composable
-private fun RecentRow(entry: RecentEntry, onClick: () -> Unit, onRemove: () -> Unit) {
-    val node = remember(entry) {
+private fun TabChip(label: String, count: Int, selected: Boolean, onClick: () -> Unit) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = {
+            Text(
+                text = if (count > 0) "$label  $count" else label,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+            )
+        },
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ),
+    )
+}
+
+@Composable
+private fun RecentRow(
+    entry: RecentEntry,
+    onClick: () -> Unit,
+    onRemove: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val node = remember(entry.key) {
         DocNode(
             uri = runCatching { Uri.parse(entry.uri) }.getOrDefault(Uri.EMPTY),
             name = entry.name,
@@ -349,9 +541,15 @@ private fun RecentRow(entry: RecentEntry, onClick: () -> Unit, onRemove: () -> U
             .filter { it.isNotBlank() }
             .joinToString(" • "),
         onClick = onClick,
+        modifier = modifier,
         trailing = {
-            IconButton(onClick = onRemove) {
-                Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.action_delete))
+            IconButton(onClick = onRemove, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    Icons.Outlined.Delete,
+                    contentDescription = stringResource(R.string.action_delete),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
             }
         },
     )
@@ -359,63 +557,103 @@ private fun RecentRow(entry: RecentEntry, onClick: () -> Unit, onRemove: () -> U
 
 @Composable
 private fun MissingRow(entry: FavoriteEntry, onRemove: () -> Unit) {
-    Card(shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
+    val warning = AppTheme.extended.warning
+    PressableSurface(
+        onClick = onRemove,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(AppRadius.md),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
         Row(
-            Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            Modifier.padding(horizontal = AppSpacing.md, vertical = AppSpacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                Icons.Outlined.Delete,
+                Icons.Outlined.WarningAmber,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.outline,
+                tint = warning,
+                modifier = Modifier.size(20.dp),
             )
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(AppSpacing.md))
             Column(Modifier.weight(1f)) {
-                Text(entry.name, style = MaterialTheme.typography.titleSmall, maxLines = 1)
                 Text(
-                    text = entry.displayPath,
+                    text = entry.name.bidiName(),
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = entry.displayPath.bidiLtr(),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            IconButton(onClick = onRemove) {
-                Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.action_delete))
+            IconButton(onClick = onRemove, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    Icons.Outlined.Delete,
+                    contentDescription = stringResource(R.string.action_delete),
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(18.dp),
+                )
             }
         }
     }
 }
 
+/**
+ * One library row. Folders are drawn with their Folder Cover in poster proportions, videos and
+ * photos with their real preview — the same thumbnails the browser uses, from the same cache.
+ */
 @Composable
 private fun MediaRow(
     node: DocNode,
     subtitle: String,
     onClick: () -> Unit,
     trailing: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Card(onClick = onClick, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
+    val isCoverFolder = node.isDirectory
+    PressableSurface(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(AppRadius.md),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
         Row(
-            Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            Modifier.padding(horizontal = AppSpacing.md, vertical = AppSpacing.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            MediaThumbnail(
-                node = node,
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(10.dp)),
-            )
-            Spacer(Modifier.width(12.dp))
+            Box(
+                if (isCoverFolder) {
+                    Modifier
+                        .height(58.dp)
+                        .aspectRatio(FOLDER_COVER_ASPECT)
+                        .clip(RoundedCornerShape(AppRadius.sm))
+                } else {
+                    Modifier
+                        .size(52.dp)
+                        .clip(RoundedCornerShape(AppRadius.sm))
+                },
+            ) {
+                MediaThumbnail(
+                    node = node,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = if (isCoverFolder) ContentScale.Fit else ContentScale.Crop,
+                )
+            }
+            Spacer(Modifier.width(AppSpacing.md))
             Column(Modifier.weight(1f)) {
                 Text(
-                    text = node.name,
+                    text = node.name.bidiName(),
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (subtitle.isNotBlank()) {
                     Text(
-                        text = subtitle,
+                        text = subtitle.bidiLtr(),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -424,21 +662,6 @@ private fun MediaRow(
                 }
             }
             trailing()
-        }
-    }
-}
-
-@Composable
-private fun EmptyHint(icon: @Composable () -> Unit, text: String) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            icon()
-            Spacer(Modifier.height(12.dp))
-            Text(
-                text = text,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }

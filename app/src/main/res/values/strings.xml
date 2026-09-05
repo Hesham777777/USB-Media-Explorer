@@ -416,4 +416,25 @@
     <string name="perm_state_granted">Granted</string>
     <string name="perm_state_denied">Not granted</string>
     <string name="perm_state_blocked">Blocked — change it in system settings</string>
+
+    <!-- Redesign: library screens -->
+    <string name="empty_favorites_title">No favourites yet</string>
+    <string name="empty_favorites_body">Tap the heart on any file or folder to keep it here, even when its drive is unplugged.</string>
+    <string name="favorites_unavailable_title">Not reachable right now</string>
+    <string name="action_remove_unavailable">Remove unavailable entries</string>
+    <string name="action_clear_all">Clear all</string>
+    <string name="empty_recent_videos">Nothing watched yet</string>
+    <string name="empty_recent_folders">No folder opened yet</string>
+    <string name="empty_recent_body">What you open shows up here so you can pick it up again.</string>
+    <string name="dialog_clear_recents_title">Clear the recent history?</string>
+
+    <!-- Redesign: player, viewer, details -->
+    <string name="player_rotate">Rotate screen</string>
+    <string name="action_rotate">Rotate</string>
+    <string name="label_extension">Extension</string>
+
+    <!-- Redesign: search -->
+    <string name="search_matches_count">%1$d matches</string>
+    <string name="search_start_body">Type a name, or pick a filter: movies and series are found by the poster inside their folder.</string>
+    <string name="search_no_results_body">Try a shorter name, or clear the filters to search everything again.</string>
 </resources>

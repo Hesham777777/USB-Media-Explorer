@@ -2,6 +2,8 @@ package com.usbmediaexplorer.ui.player
 
 import android.app.Activity
 import android.content.Context
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.media.AudioManager
 import android.view.View
 import android.view.WindowManager
@@ -40,6 +42,7 @@ import androidx.compose.material.icons.outlined.Forward10
 import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material.icons.outlined.SkipPrevious
 import androidx.compose.material.icons.outlined.Speed
+import androidx.compose.material.icons.outlined.ScreenRotation
 import androidx.compose.material.icons.outlined.Subtitles
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -284,6 +287,18 @@ fun PlayerScreen(uri: String, folderUri: String) {
                 onToggleLock = { viewModel.toggleLock() },
                 onSpeed = { showSpeedDialog = true },
                 onAspect = { showAspectDialog = true },
+                // Flip the device orientation without fighting the system sensor: portrait phones
+                // get landscape video and back, tablets already in landscape get portrait.
+                onRotate = {
+                    val activity = context as? Activity ?: return@PlayerControls
+                    val landscape = activity.resources.configuration.orientation ==
+                        Configuration.ORIENTATION_LANDSCAPE
+                    activity.requestedOrientation = if (landscape) {
+                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    } else {
+                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    }
+                },
                 onAudio = { showAudioDialog = true },
                 onSubtitle = { showSubtitleDialog = true },
                 onBack = { navigator.back() },
@@ -432,6 +447,7 @@ private fun PlayerControls(
     onToggleLock: () -> Unit,
     onSpeed: () -> Unit,
     onAspect: () -> Unit,
+    onRotate: () -> Unit,
     onAudio: () -> Unit,
     onSubtitle: () -> Unit,
     onBack: () -> Unit,
@@ -573,6 +589,7 @@ private fun PlayerControls(
                 OverlayAction(Icons.Outlined.Audiotrack, R.string.player_audio_track, onAudio)
                 OverlayAction(Icons.Outlined.Speed, R.string.player_speed, onSpeed)
                 OverlayAction(Icons.Outlined.AspectRatio, R.string.player_aspect, onAspect)
+                OverlayAction(Icons.Outlined.ScreenRotation, R.string.player_rotate, onRotate)
                 Spacer(Modifier.width(4.dp))
             }
         }

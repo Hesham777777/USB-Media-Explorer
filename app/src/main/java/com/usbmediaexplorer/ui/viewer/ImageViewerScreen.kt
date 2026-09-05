@@ -2,6 +2,7 @@ package com.usbmediaexplorer.ui.viewer
 
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.RotateRight
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -25,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -130,6 +134,8 @@ fun ImageViewerScreen(uri: String, folderUri: String) {
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
     var confirmDelete by remember { mutableStateOf<DocNode?>(null) }
+    var rotation by remember { mutableIntStateOf(0) }
+    var showInfo by remember { mutableStateOf<DocNode?>(null) }
 
     Box(
         Modifier
@@ -150,11 +156,15 @@ fun ImageViewerScreen(uri: String, folderUri: String) {
                 initialPage = state.index,
                 pageCount = { state.images.size },
             )
-            LaunchedEffect(pagerState.currentPage) { viewModel.setIndex(pagerState.currentPage) }
+            // Rotation is per image and resets when you swipe to the next one.
+            LaunchedEffect(pagerState.currentPage) {
+                viewModel.setIndex(pagerState.currentPage)
+                rotation = 0
+            }
 
             HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
                 val node = state.images[page]
-                ZoomableImage(node = node)
+                ZoomableImage(node = node, rotation = rotation)
             }
 
             Column(
@@ -199,6 +209,22 @@ fun ImageViewerScreen(uri: String, folderUri: String) {
                     }) {
                         Icon(Icons.Outlined.Share, contentDescription = stringResource(R.string.action_share), tint = Color.White)
                     }
+                    IconButton(onClick = { rotation = (rotation + 90) % 360 }) {
+                        Icon(
+                            Icons.Outlined.RotateRight,
+                            contentDescription = stringResource(R.string.action_rotate),
+                            tint = Color.White,
+                        )
+                    }
+                    IconButton(onClick = {
+                        showInfo = state.images.getOrNull(pagerState.currentPage)
+                    }) {
+                        Icon(
+                            Icons.Outlined.Info,
+                            contentDescription = stringResource(R.string.action_details),
+                            tint = Color.White,
+                        )
+                    }
                     IconButton(onClick = {
                         confirmDelete = state.images.getOrNull(pagerState.currentPage)
                     }) {
@@ -207,6 +233,20 @@ fun ImageViewerScreen(uri: String, folderUri: String) {
                 }
             }
         }
+    }
+
+    showInfo?.let { node ->
+        ConfirmDialog(
+            title = node.name,
+            body = listOf(
+                Formatters.size(node.size.coerceAtLeast(0)),
+                Formatters.dateTime(node.lastModified),
+                node.displayPath,
+            ).filter { it.isNotBlank() }.joinToString("\n"),
+            confirmLabel = stringResource(R.string.action_close),
+            onConfirm = { showInfo = null },
+            onDismiss = { showInfo = null },
+        )
     }
 
     confirmDelete?.let { node ->
@@ -224,7 +264,7 @@ fun ImageViewerScreen(uri: String, folderUri: String) {
 }
 
 @Composable
-private fun ZoomableImage(node: DocNode) {
+private fun ZoomableImage(node: DocNode, rotation: Int = 0) {
     var scale by remember { mutableFloatStateOf(1f) }
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
@@ -233,6 +273,20 @@ private fun ZoomableImage(node: DocNode) {
         Modifier
             .fillMaxSize()
             .pointerInput(node.key) {
+                // Double tap toggles between fit and 2.5×, the gesture every photo app has.
+                detectTapGestures(
+                    onDoubleTap = {
+                        if (scale > 1f) {
+                            scale = 1f
+                            offsetX = 0f
+                            offsetY = 0f
+                        } else {
+                            scale = 2.5f
+                        }
+                    },
+                )
+            }
+            .pointerInput(node.key, rotation) {
                 detectTransformGestures { _, pan, zoom, _ ->
                     scale = (scale * zoom).coerceIn(1f, 6f)
                     offsetX += pan.x
@@ -259,6 +313,7 @@ private fun ZoomableImage(node: DocNode) {
                     scaleY = scale
                     translationX = offsetX
                     translationY = offsetY
+                    rotationZ = rotation.toFloat()
                 },
         )
         if (scale > 1f) {

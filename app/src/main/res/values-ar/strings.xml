@@ -415,4 +415,25 @@
     <string name="perm_state_granted">ممنوحة</string>
     <string name="perm_state_denied">غير ممنوحة</string>
     <string name="perm_state_blocked">محظورة — غيّرها من إعدادات النظام</string>
+
+    <!-- إعادة التصميم: شاشات المكتبة -->
+    <string name="empty_favorites_title">لا توجد مفضلات بعد</string>
+    <string name="empty_favorites_body">اضغط على القلب في أي ملف أو مجلد ليُحفظ هنا، حتى لو فُصلت وحدته.</string>
+    <string name="favorites_unavailable_title">غير متاح حاليًا</string>
+    <string name="action_remove_unavailable">إزالة العناصر غير المتاحة</string>
+    <string name="action_clear_all">مسح الكل</string>
+    <string name="empty_recent_videos">لم تشاهد شيئًا بعد</string>
+    <string name="empty_recent_folders">لم يُفتح أي مجلد بعد</string>
+    <string name="empty_recent_body">ما تفتحه يظهر هنا لتتمكن من متابعته مرة أخرى.</string>
+    <string name="dialog_clear_recents_title">مسح السجل الأخير؟</string>
+
+    <!-- إعادة التصميم: المشغّل والعارض والتفاصيل -->
+    <string name="player_rotate">تدوير الشاشة</string>
+    <string name="action_rotate">تدوير</string>
+    <string name="label_extension">الامتداد</string>
+
+    <!-- إعادة التصميم: البحث -->
+    <string name="search_matches_count">%1$d نتيجة مطابقة</string>
+    <string name="search_start_body">اكتب اسمًا أو اختر عامل تصفية: الأفلام والمسلسلات تُكتشف من الملصق الموجود داخل مجلدها.</string>
+    <string name="search_no_results_body">جرّب اسمًا أقصر، أو امسح عوامل التصفية للبحث في كل شيء مرة أخرى.</string>
 </resources>

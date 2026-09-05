@@ -10,22 +10,28 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Clear
+import androidx.compose.material.icons.outlined.ManageSearch
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -44,6 +51,9 @@ import com.usbmediaexplorer.ui.browse.DocItem
 import com.usbmediaexplorer.ui.browse.components.DocItemsView
 import com.usbmediaexplorer.data.settings.ViewMode
 import com.usbmediaexplorer.ui.common.LocalAppContainer
+import com.usbmediaexplorer.ui.common.SkeletonRows
+import com.usbmediaexplorer.ui.common.StateBlock
+import com.usbmediaexplorer.ui.theme.AppRadius
 import com.usbmediaexplorer.ui.nav.LocalNavigator
 import com.usbmediaexplorer.ui.common.viewModelFactory
 
@@ -98,8 +108,19 @@ fun SearchScreen(rootUri: String, snackbarHostState: SnackbarHostState) {
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(AppRadius.pill),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        ),
                     )
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.background,
+                ),
             )
         },
     ) { padding ->
@@ -116,7 +137,17 @@ fun SearchScreen(rootUri: String, snackbarHostState: SnackbarHostState) {
                     FilterChip(
                         selected = query.filter == filter,
                         onClick = { viewModel.setFilter(filter) },
-                        label = { Text(stringResource(filterLabel(filter))) },
+                        label = {
+                            Text(
+                                text = stringResource(filterLabel(filter)),
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1,
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
                     )
                 }
             }
@@ -133,6 +164,15 @@ fun SearchScreen(rootUri: String, snackbarHostState: SnackbarHostState) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
+                if (docItems.isNotEmpty()) {
+                    Text(
+                        text = stringResource(R.string.search_matches_count, docItems.size),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
+                }
                 if (result.isRunning) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(14.dp),
@@ -150,23 +190,40 @@ fun SearchScreen(rootUri: String, snackbarHostState: SnackbarHostState) {
 
             Box(Modifier.fillMaxSize()) {
                 when {
-                    docItems.isEmpty() && result.isRunning -> CircularProgressIndicator(
-                        Modifier.align(Alignment.Center),
+                    docItems.isEmpty() && result.isRunning -> SkeletonRows(
+                        count = 7,
+                        modifier = Modifier.align(Alignment.TopCenter),
                     )
 
-                    docItems.isEmpty() -> Text(
-                        text = stringResource(
+                    docItems.isEmpty() -> StateBlock(
+                        icon = if (query.text.isBlank() && query.filter == SearchFilter.ALL) {
+                            Icons.Outlined.ManageSearch
+                        } else {
+                            Icons.Outlined.SearchOff
+                        },
+                        title = stringResource(
                             if (query.text.isBlank() && query.filter == SearchFilter.ALL) {
                                 R.string.search_hint
                             } else {
                                 R.string.search_no_results
                             },
                         ),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(24.dp),
+                        body = if (query.text.isBlank() && query.filter == SearchFilter.ALL) {
+                            stringResource(R.string.search_start_body)
+                        } else {
+                            stringResource(R.string.search_no_results_body)
+                        },
+                        actionLabel = if (query.filter != SearchFilter.ALL) {
+                            stringResource(R.string.action_clear_filters)
+                        } else {
+                            null
+                        },
+                        onAction = if (query.filter != SearchFilter.ALL) {
+                            { viewModel.setFilter(SearchFilter.ALL) }
+                        } else {
+                            null
+                        },
+                        modifier = Modifier.align(Alignment.Center),
                     )
 
                     else -> DocItemsView(

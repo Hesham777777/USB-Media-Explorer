@@ -91,6 +91,15 @@ fun DetailsSheet(
             HorizontalDivider()
 
             InfoRow(stringResource(R.string.label_path), node.displayPath)
+            if (!node.isDirectory && node.extension.isNotEmpty()) {
+                InfoRow(
+                    stringResource(R.string.label_extension),
+                    node.extension.uppercase(java.util.Locale.US),
+                )
+            }
+            state.volumeName?.let { volume ->
+                InfoRow(stringResource(R.string.label_storage), volume)
+            }
             InfoRow(
                 stringResource(R.string.label_size),
                 Formatters.size(state.sizeBytes ?: node.size.coerceAtLeast(0)),
