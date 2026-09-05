@@ -41,8 +41,11 @@ import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -143,6 +146,18 @@ class BrowseViewModel(
         /** How long typing must pause before a match pass runs: instant to the eye, cheap on a
          *  folder of thousands of files. */
         const val QUERY_DEBOUNCE_MS = 140L
+
+        /** A visited folder older than this is re-read silently in the background. */
+        const val LISTING_STALE_MS = 5 * 60_000L
+
+        /** How many visited folders stay in memory for instant back-navigation. */
+        const val LISTING_CACHE_LIMIT = 24
+
+        /** Minimum gap between two "recent folder" records of the same folder. */
+        const val RECENT_RECORD_INTERVAL_MS = 60_000L
+
+        /** Upper bound on how often resolved metadata reaches the list while a folder opens. */
+        const val METADATA_UI_INTERVAL_MS = 250L
     }
 
     private val context: Context = container.appContext
@@ -169,6 +184,25 @@ class BrowseViewModel(
     /** Folder media counts, resolved only for folders the user actually scrolls to. */
     private val folderCounts = MutableStateFlow<Map<String, MediaCount>>(emptyMap())
     private val countQueue = Channel<DocNode>(capacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    /**
+     * In-memory snapshot of the folders visited in this session.
+     *
+     * Back navigation and re-opening a folder must not touch the drive again: the snapshot is
+     * painted immediately (no skeleton, no SAF query) and only a snapshot older than
+     * [LISTING_STALE_MS] is re-read, silently, in the background.
+     */
+    private data class Listing(
+        val node: DocNode,
+        val trail: List<DocNode>,
+        val children: List<DocNode>,
+        val at: Long,
+    )
+
+    private val listings = LinkedHashMap<String, Listing>()
+    private var loadJob: Job? = null
+    private var refreshJob: Job? = null
+    private val recentRecordedAt = HashMap<String, Long>()
 
     private val favorites = container.favoritesStore.favorites
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -237,9 +271,22 @@ class BrowseViewModel(
             Controls(sel, isSelecting, q, matchQ, kf)
         }
 
+    /**
+     * Metadata resolves one file at a time, so a media folder publishes hundreds of snapshots
+     * while it opens. Feeding them all to the list rebuilt everything per resolved file; the
+     * first snapshot still passes immediately, later ones at most every
+     * [METADATA_UI_INTERVAL_MS].
+     */
+    private val metadataUi: kotlinx.coroutines.flow.Flow<Map<String, MediaMetadata>> = flow {
+        metadataRepository.published.conflate().collect { snapshot ->
+            emit(snapshot)
+            delay(METADATA_UI_INTERVAL_MS)
+        }
+    }
+
     private val items: kotlinx.coroutines.flow.Flow<List<DocItem>> = combine(
         rawChildren,
-        metadataRepository.published,
+        metadataUi,
         favorites,
         positions,
         folderCounts,
@@ -358,7 +405,8 @@ class BrowseViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BrowseUiState())
 
     init {
-        load(initialUri)
+        // The screen triggers load(uri) itself; loading here as well meant two concurrent
+        // reads of the same folder on every open.
         // Single worker: folder tallies are cheap but must never compete with thumbnail I/O.
         viewModelScope.launch(Dispatchers.IO) {
             for (node in countQueue) {
@@ -385,46 +433,121 @@ class BrowseViewModel(
     // Loading
     // ------------------------------------------------------------------
 
-    fun load(uriString: String) {
+    /**
+     * Opens a folder. Navigation and refresh are separate concerns:
+     *
+     * - a folder with a session snapshot is painted immediately — no skeleton, no drive query;
+     * - a snapshot older than [LISTING_STALE_MS] is re-read silently in the background;
+     * - [force] is the explicit refresh action and the post-operation reload;
+     * - starting a load cancels the previous one, so fast navigation never stacks reads.
+     */
+    fun load(uriString: String, force: Boolean = false) {
         if (uriString.isBlank()) {
             error.value = context.getString(R.string.error_no_permission)
             loading.value = false
             return
         }
-        val changedFolder = currentNode.value?.uri?.toString() != uriString
-        viewModelScope.launch {
-            if (changedFolder) clearFilters()
-            loading.value = true
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            val cached = synchronized(listings) { listings[uriString] }
+            val sameFolder = currentNode.value?.uri?.toString() == uriString
+            if (cached != null && !force) {
+                currentNode.value = cached.node
+                breadcrumb.value = cached.trail
+                rawChildren.value = cached.children
+                loading.value = false
+                error.value = null
+                // Already on screen (the back-navigation case): do literally nothing else.
+                if (sameFolder) return@launch
+                clearSelection()
+                recordFolderThrottled(cached.node)
+                if (System.currentTimeMillis() - cached.at > LISTING_STALE_MS) {
+                    refreshListing(cached.node)
+                }
+                return@launch
+            }
+            if (!sameFolder) {
+                clearFilters()
+                drainCountQueue()
+            }
+            // A skeleton only when there is genuinely nothing to paint yet.
+            loading.value = cached == null
             error.value = null
             val uri = runCatching { Uri.parse(uriString) }.getOrNull()
             val node = uri?.let { docRepository.node(it) }
             if (node == null) {
                 error.value = context.getString(R.string.error_no_permission)
                 loading.value = false
-                rawChildren.value = emptyList()
+                if (cached == null) rawChildren.value = emptyList()
                 return@launch
             }
             currentNode.value = node
-            breadcrumb.value = docRepository.breadcrumb(node)
-            recordFolder(node)
+            breadcrumb.value = withContext(Dispatchers.IO) { docRepository.breadcrumb(node) }
             val children = runCatching {
                 withContext(Dispatchers.IO) { docRepository.children(node) }
             }
             children.onSuccess { list ->
                 rawChildren.value = list
+                putListing(uriString, Listing(node, breadcrumb.value, list, System.currentTimeMillis()))
+                recordFolderThrottled(node)
                 // Media folders get their info resolved progressively, never all at once.
                 list.take(40).forEach { metadataRepository.enqueue(it) }
             }.onFailure {
-                error.value = context.getString(R.string.error_device_disconnected)
-                rawChildren.value = emptyList()
+                if (cached == null) {
+                    error.value = context.getString(R.string.error_device_disconnected)
+                    rawChildren.value = emptyList()
+                }
             }
             loading.value = false
-            clearSelection()
+            if (!sameFolder) clearSelection()
         }
     }
 
     fun reload() {
-        currentNode.value?.let { load(it.uri.toString()) }
+        currentNode.value?.let { load(it.uri.toString(), force = true) }
+    }
+
+    private fun putListing(key: String, listing: Listing) {
+        synchronized(listings) {
+            listings[key] = listing
+            while (listings.size > LISTING_CACHE_LIMIT) {
+                listings.remove(listings.keys.first())
+            }
+        }
+    }
+
+    /** Silent re-read of a stale snapshot: the list swaps in place, without a skeleton. */
+    private fun refreshListing(node: DocNode) {
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
+            val list = runCatching {
+                withContext(Dispatchers.IO) { docRepository.children(node) }
+            }.getOrNull() ?: return@launch
+            if (currentNode.value?.uri != node.uri) return@launch
+            rawChildren.value = list
+            putListing(
+                node.uri.toString(),
+                Listing(node, breadcrumb.value, list, System.currentTimeMillis()),
+            )
+        }
+    }
+
+    /** Tallies queued for folders the user already left are pure waste on a slow stick. */
+    private fun drainCountQueue() {
+        while (countQueue.tryReceive().isSuccess) { /* dropped */ }
+    }
+
+    /**
+     * "Recent folders" stays honest without a JSON write per navigation: one record per folder
+     * per minute is plenty for a two-hour window.
+     */
+    private fun recordFolderThrottled(node: DocNode) {
+        if (!node.isDirectory) return
+        val now = System.currentTimeMillis()
+        val key = node.uri.toString()
+        if (now - (recentRecordedAt[key] ?: 0L) < RECENT_RECORD_INTERVAL_MS) return
+        recentRecordedAt[key] = now
+        recordFolder(node)
     }
 
     /**

@@ -44,7 +44,6 @@ data class PlayerUiState(
     val playlist: List<DocNode> = emptyList(),
     val index: Int = 0,
     val isPlaying: Boolean = false,
-    val positionMs: Long = 0L,
     val durationMs: Long = 0L,
     val bufferedMs: Long = 0L,
     val speed: Float = 1f,
@@ -60,8 +59,6 @@ data class PlayerUiState(
 ) {
     val hasNext: Boolean get() = index < playlist.lastIndex
     val hasPrevious: Boolean get() = index > 0
-    val progress: Float
-        get() = if (durationMs <= 0) 0f else (positionMs.toFloat() / durationMs).coerceIn(0f, 1f)
 }
 
 /**
@@ -84,6 +81,7 @@ class PlayerViewModel(
     private val subtitleConfigs = HashMap<Int, MutableList<MediaItem.SubtitleConfiguration>>()
 
     private val _state = MutableStateFlow(PlayerUiState())
+    private val _position = MutableStateFlow(0L)
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
 
     val player: ExoPlayer = ExoPlayer.Builder(context)
@@ -265,6 +263,13 @@ class PlayerViewModel(
         }
     }
 
+    /**
+     * Playback position, deliberately kept out of [state]: it ticks twice a second, and only the
+     * scrubber and the time label read it. Inside [state] it recomposed the entire player screen
+     * on every tick for the whole duration of every episode.
+     */
+    val position: StateFlow<Long> = _position.asStateFlow()
+
     private fun startPositionTicker() {
         viewModelScope.launch {
             while (true) {
@@ -272,11 +277,11 @@ class PlayerViewModel(
                 val current = player.currentPosition.coerceAtLeast(0)
                 val duration = player.duration.let { if (it == C.TIME_UNSET) 0L else it }
                 val buffered = player.bufferedPosition.coerceAtLeast(0)
-                _state.value = _state.value.copy(
-                    positionMs = current,
-                    durationMs = duration,
-                    bufferedMs = buffered,
-                )
+                _position.value = current
+                // Duration and buffered position change rarely; state stays quiet between them.
+                if (duration != _state.value.durationMs || buffered != _state.value.bufferedMs) {
+                    _state.value = _state.value.copy(durationMs = duration, bufferedMs = buffered)
+                }
                 if (_state.value.isPlaying && current % SAVE_INTERVAL_MS < 500) persistPosition()
             }
         }
@@ -331,7 +336,7 @@ class PlayerViewModel(
 
     fun seekTo(positionMs: Long) {
         player.seekTo(positionMs.coerceIn(0, player.duration.coerceAtLeast(0)))
-        _state.value = _state.value.copy(positionMs = positionMs)
+        _position.value = positionMs
     }
 
     fun seekBy(deltaMs: Long) = seekTo(player.currentPosition + deltaMs)

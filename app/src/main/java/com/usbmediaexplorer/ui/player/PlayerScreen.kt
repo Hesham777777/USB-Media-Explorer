@@ -76,6 +76,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import kotlinx.coroutines.flow.StateFlow
 import com.usbmediaexplorer.R
 import com.usbmediaexplorer.data.settings.AspectMode
 import com.usbmediaexplorer.ui.common.LocalAppContainer
@@ -213,7 +214,9 @@ fun PlayerScreen(uri: String, folderUri: String) {
                     if (state.durationMs <= 0) return@detectHorizontalDragGestures
                     if (!scrubbing) {
                         scrubbing = true
-                        scrubPosition = state.positionMs.toFloat()
+                        // Read, not collected: the drag start needs the current position once,
+                        // and collecting it here would recompose the surface on every tick.
+                        scrubPosition = viewModel.position.value.toFloat()
                         viewModel.setControlsVisible(true)
                     }
                     val delta = dragAmount * SCRUB_MS_PER_PX * (state.durationMs / 60_000f)
@@ -272,6 +275,7 @@ fun PlayerScreen(uri: String, folderUri: String) {
         ) {
             PlayerControls(
                 state = state,
+                positionFlow = viewModel.position,
                 scrubbing = scrubbing,
                 scrubPosition = scrubPosition,
                 onScrubChange = { scrubPosition = it; scrubbing = true },
@@ -435,6 +439,7 @@ private const val SCRUB_MS_PER_PX = 220f
 @Composable
 private fun PlayerControls(
     state: PlayerUiState,
+    positionFlow: StateFlow<Long>,
     scrubbing: Boolean,
     scrubPosition: Float,
     onScrubChange: (Float) -> Unit,
@@ -452,6 +457,9 @@ private fun PlayerControls(
     onSubtitle: () -> Unit,
     onBack: () -> Unit,
 ) {
+    // Ticks twice a second: only the controls (scrubber + time label) recompose with it.
+    val positionMs by positionFlow.collectAsStateWithLifecycle()
+
     Box(
         Modifier
             .fillMaxSize()
@@ -561,14 +569,14 @@ private fun PlayerControls(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = Formatters.duration(if (scrubbing) scrubPosition.toLong() else state.positionMs),
+                    text = Formatters.duration(if (scrubbing) scrubPosition.toLong() else positionMs),
                     color = Color.White,
                     style = MaterialTheme.typography.labelSmall,
                 )
                 Slider(
-                    value = if (scrubbing) scrubPosition else state.positionMs.toFloat(),
+                    value = if (scrubbing) scrubPosition else positionMs.toFloat(),
                     onValueChange = onScrubChange,
-                    onValueChangeFinished = { onScrubEnd(if (scrubbing) scrubPosition else state.positionMs.toFloat()) },
+                    onValueChangeFinished = { onScrubEnd(if (scrubbing) scrubPosition else positionMs.toFloat()) },
                     valueRange = 0f..state.durationMs.coerceAtLeast(1L).toFloat(),
                     modifier = Modifier
                         .weight(1f)

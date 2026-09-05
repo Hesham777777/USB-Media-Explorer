@@ -100,6 +100,23 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch { volumeRepository.refresh() }
     }
 
+    private var mediaGranted: Boolean? = null
+
+    /**
+     * Records the media-permission state after a resume and reports whether it *changed*.
+     *
+     * Returning to the home screen must not rescan every volume: the topology already follows
+     * mount/unmount events, and a rescan is only meaningful when a grant appeared or disappeared
+     * (for example after a round trip through the system settings).
+     */
+    fun syncMediaPermission(granted: Boolean): Boolean {
+        val changed = mediaGranted != null && mediaGranted != granted
+        mediaGranted = granted
+        setNeedsMediaPermission(!granted)
+        if (granted) setMediaPermissionBlocked(false)
+        return changed
+    }
+
     /**
      * Re-applies the recency window. Called when the screen resumes, so a folder opened three
      * hours ago disappears from "recent folders" without waiting for the store to emit.

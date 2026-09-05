@@ -14,6 +14,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /** Search across the whole volume with the ready-made filters from spec §12. */
@@ -28,11 +31,25 @@ class SearchViewModel(
     private val _result = MutableStateFlow(SearchResult())
     val result: StateFlow<SearchResult> = _result.asStateFlow()
 
+    private companion object {
+        /** How long typing must pause before a search starts. */
+        const val SEARCH_DEBOUNCE_MS = 220L
+    }
+
     private var searchJob: Job? = null
+
+    init {
+        // One walk per pause in typing, and a new pause cancels the previous search: the disk
+        // is never re-read per keystroke once the engine holds a snapshot of the root.
+        viewModelScope.launch {
+            _query.map { it.text }
+                .debounce(SEARCH_DEBOUNCE_MS)
+                .collectLatest { runSearch() }
+        }
+    }
 
     fun setText(text: String) {
         _query.value = _query.value.copy(text = text)
-        runSearch()
     }
 
     fun setFilter(filter: SearchFilter) {

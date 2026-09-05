@@ -69,17 +69,57 @@ class SearchEngine(
     private val settingsRepository: SettingsRepository,
 ) {
 
+    /**
+     * A finished walk of one root, kept so the next keystroke filters memory instead of
+     * re-reading the drive. Expired after [SNAPSHOT_TTL_MS]; a new root replaces it.
+     */
+    private data class Snapshot(val rootKey: String, val at: Long, val nodes: List<DocNode>)
+
+    @Volatile
+    private var snapshot: Snapshot? = null
+
     fun search(roots: List<DocNode>, query: SearchQuery): Flow<SearchResult> = flow {
         val settings: AppSettings = runCatching { settingsRepository.settings.first() }
             .getOrDefault(AppSettings.DEFAULT)
         val matches = ArrayList<DocNode>()
-        val stack = ArrayDeque<DocNode>()
-        roots.reversed().forEach { stack.addLast(it) }
         var scanned = 0
         var truncated = false
-        var lastEmit = System.currentTimeMillis()
 
         emit(SearchResult(emptyList(), 0, isRunning = true))
+
+        val root = roots.firstOrNull()
+        if (root == null) {
+            emit(SearchResult(emptyList(), 0, isRunning = false))
+            return@flow
+        }
+
+        val cached = snapshot?.takeIf {
+            it.rootKey == root.key && System.currentTimeMillis() - it.at < SNAPSHOT_TTL_MS
+        }
+        if (cached != null) {
+            // Every character after the first walk is pure in-memory filtering: no drive I/O,
+            // no cancellation of an in-flight traversal, results in a single frame.
+            for (node in cached.nodes) {
+                currentCoroutineContext().ensureActive()
+                scanned++
+                if (!settings.showHiddenFiles && node.isHidden) continue
+                if (matches(node, query, settings)) {
+                    matches += node
+                    if (matches.size >= query.maxResults) {
+                        truncated = true
+                        break
+                    }
+                }
+            }
+            emit(SearchResult(matches.toList(), scanned, isRunning = false, truncated = truncated))
+            return@flow
+        }
+
+        // Cold walk: progressive as before, and everything seen is remembered for the next query.
+        val walked = ArrayList<DocNode>()
+        val stack = ArrayDeque<DocNode>()
+        stack.addLast(root)
+        var lastEmit = System.currentTimeMillis()
 
         while (stack.isNotEmpty()) {
             currentCoroutineContext().ensureActive()
@@ -89,6 +129,7 @@ class SearchEngine(
             for (child in children) {
                 currentCoroutineContext().ensureActive()
                 scanned++
+                walked += child
                 if (!settings.showHiddenFiles && child.isHidden) continue
                 if (matches(child, query, settings)) matches += child
                 if (matches.size >= query.maxResults) {
@@ -103,6 +144,9 @@ class SearchEngine(
                 lastEmit = now
                 emit(SearchResult(matches.toList(), scanned, isRunning = true, truncated = truncated))
             }
+        }
+        if (walked.isNotEmpty()) {
+            snapshot = Snapshot(root.key, System.currentTimeMillis(), walked)
         }
         emit(SearchResult(matches.toList(), scanned, isRunning = false, truncated = truncated))
     }.flowOn(Dispatchers.IO)
@@ -143,6 +187,9 @@ class SearchEngine(
     }
 
     companion object {
+        /** How long a finished walk stays reusable for in-memory filtering. */
+        const val SNAPSHOT_TTL_MS = 2 * 60_000L
+
         private val episodePattern = Regex(
             """(?i)(s\d{1,2}[\s._-]?e\d{1,3}|\b\d{1,2}x\d{2,3}\b|episode[\s._-]?\d+|حلقة)""",
         )

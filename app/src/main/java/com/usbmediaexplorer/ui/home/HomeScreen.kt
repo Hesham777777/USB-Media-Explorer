@@ -144,10 +144,9 @@ fun HomeScreen(snackbarHostState: SnackbarHostState) {
 
     val syncPermissionState = {
         val granted = Permissions.hasMediaAccess(context)
-        viewModel.setNeedsMediaPermission(!granted)
-        // Coming back from the system settings: a grant there must clear the blocked flag.
-        if (granted) viewModel.setMediaPermissionBlocked(false)
-        viewModel.refresh()
+        // Coming back from the system settings: a changed grant clears the blocked flag and is
+        // the only resume case that deserves a full volume rescan.
+        if (viewModel.syncMediaPermission(granted)) viewModel.refresh()
     }
 
     /**
