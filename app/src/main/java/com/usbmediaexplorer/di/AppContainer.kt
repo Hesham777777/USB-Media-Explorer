@@ -15,6 +15,7 @@ import com.usbmediaexplorer.data.store.FavoritesStore
 import com.usbmediaexplorer.data.store.FolderPrefsStore
 import com.usbmediaexplorer.data.store.PlaybackPositionStore
 import com.usbmediaexplorer.data.store.RecentStore
+import com.usbmediaexplorer.data.thumb.AudioArtExtractor
 import com.usbmediaexplorer.data.thumb.CoilSetup
 import com.usbmediaexplorer.data.thumb.FolderCoverExtractor
 import com.usbmediaexplorer.data.thumb.ImageThumbExtractor
