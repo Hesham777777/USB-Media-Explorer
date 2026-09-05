@@ -35,6 +35,7 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.NoteAdd
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Settings
@@ -390,7 +391,7 @@ fun BrowseScreen(uri: String, snackbarHostState: SnackbarHostState) {
                                 )
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.action_reset_folder_view)) },
-                                    leadingIcon = { Icon(Icons.Outlined.SwapVert, contentDescription = null) },
+                                    leadingIcon = { Icon(Icons.Outlined.RestartAlt, contentDescription = null) },
                                     onClick = {
                                         showOverflow = false
                                         viewModel.resetFolderPrefs()
