@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Coloured file-type set: the folder companion of the folded-corner documents. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:fillColor="#FDD663"
+        android:pathData="M8,14 A4,4 0 0 1 12,10 H19 L23,14 H36 A4,4 0 0 1 40,18 V36 A4,4 0 0 1 36,40 H12 A4,4 0 0 1 8,36 Z" />
+    <path
+        android:fillColor="#FCC934"
+        android:pathData="M8,20 H40 V36 A4,4 0 0 1 36,40 H12 A4,4 0 0 1 8,36 Z" />
+</vector>

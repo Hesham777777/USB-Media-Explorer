@@ -1,31 +1,26 @@
 package com.usbmediaexplorer.ui.common
 
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Image
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Android
-import androidx.compose.material.icons.outlined.Article
-import androidx.compose.material.icons.outlined.AudioFile
 import androidx.compose.material.icons.outlined.CloudOff
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.FolderZip
-import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material.icons.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Movie
-import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material.icons.outlined.SdCard
 import androidx.compose.material.icons.outlined.Smartphone
 import androidx.compose.material.icons.outlined.Storage
-import androidx.compose.material.icons.outlined.Subtitles
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.Usb
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.usbmediaexplorer.R
 import com.usbmediaexplorer.data.doc.DocNode
 import com.usbmediaexplorer.data.doc.MediaKind
 import com.usbmediaexplorer.data.volume.VolumeKind
@@ -34,37 +29,55 @@ import com.usbmediaexplorer.ui.theme.AppTheme
 /**
  * One icon system for the whole app (spec §26).
  *
- * Every kind has a single glyph and a single colour, so a video is recognisable before its name is
- * read, in the grid, in the list, in search results, in the details sheet and in the player alike.
- * Colours are semantic, never the primary colour: violet means "this app acts here", not "this is a
- * video".
+ * File *types* use the coloured folded-corner document set (one colour and one glyph per kind,
+ * extension aware): a video, a track or a spreadsheet is recognisable before its name is read, in
+ * the grid, in the list, in search results, in the details sheet and in the context sheet alike.
+ * They are vectors, so they stay crisp from a 20 dp row to a 160 dp tile in both themes.
+ *
+ * Everything that is an *action* or a *state* (select, favorite, error, locked…) stays a monochrome
+ * glyph tinted by the theme, so colour keeps meaning "this is a kind of file", not "press me".
  *
  * A typed icon only appears when a real preview could not be produced — never as a shortcut to
  * avoid decoding the file.
  */
-fun iconFor(kind: MediaKind): ImageVector = when (kind) {
-    MediaKind.DIRECTORY -> Icons.Outlined.Folder
-    MediaKind.VIDEO -> Icons.Outlined.Movie
-    MediaKind.IMAGE -> Icons.Outlined.Image
-    MediaKind.AUDIO -> Icons.Outlined.AudioFile
-    MediaKind.SUBTITLE -> Icons.Outlined.Subtitles
-    MediaKind.ARCHIVE -> Icons.Outlined.FolderZip
-    MediaKind.DOCUMENT -> Icons.Outlined.Description
-    MediaKind.APK -> Icons.Outlined.Android
-    MediaKind.OTHER -> Icons.Outlined.InsertDriveFile
+@DrawableRes
+fun fileIconRes(kind: MediaKind): Int = when (kind) {
+    MediaKind.DIRECTORY -> R.drawable.file_type_folder
+    MediaKind.VIDEO -> R.drawable.file_type_video
+    MediaKind.IMAGE -> R.drawable.file_type_image
+    MediaKind.AUDIO -> R.drawable.file_type_audio
+    MediaKind.SUBTITLE -> R.drawable.file_type_text
+    MediaKind.ARCHIVE -> R.drawable.file_type_archive
+    MediaKind.DOCUMENT -> R.drawable.file_type_text
+    MediaKind.APK -> R.drawable.file_type_apk
+    MediaKind.OTHER -> R.drawable.file_type_link
 }
 
-/** Extension-aware glyph: a PDF, an APK and a `.7z` do not share one "document" icon. */
-fun iconForNode(node: DocNode): ImageVector = when {
-    node.isDirectory -> iconFor(MediaKind.DIRECTORY)
+/** Extension aware: a `.pdf`, a workbook and a deck do not share one "document" icon. */
+@DrawableRes
+fun fileIconRes(node: DocNode): Int = when {
+    node.isDirectory -> R.drawable.file_type_folder
     else -> when (node.extension) {
-        "pdf" -> Icons.Outlined.PictureAsPdf
-        "apk", "apks", "xapk" -> Icons.Outlined.Android
-        "zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "xz", "iso", "cab" -> Icons.Outlined.FolderZip
-        "srt", "ass", "ssa", "vtt", "sub", "idx", "sup" -> Icons.Outlined.Subtitles
-        "txt", "md", "nfo", "log", "ini", "json", "xml" -> Icons.Outlined.Article
-        else -> iconFor(node.kind)
+        "pdf" -> R.drawable.file_type_pdf
+        "xls", "xlsx", "csv", "ods", "tsv" -> R.drawable.file_type_sheet
+        "ppt", "pptx", "odp", "pps", "key" -> R.drawable.file_type_slides
+        else -> fileIconRes(node.kind)
     }
+}
+
+/** The coloured document icon of a node, at whatever size the caller asks for. */
+@Composable
+fun FileTypeIcon(
+    node: DocNode,
+    modifier: Modifier = Modifier,
+    contentDescription: String? = null,
+) {
+    Image(
+        painter = painterResource(fileIconRes(node)),
+        contentDescription = contentDescription,
+        contentScale = ContentScale.Fit,
+        modifier = modifier,
+    )
 }
 
 /** Kind colour: video violet, photo teal, audio amber, archive orange, document blue-grey. */

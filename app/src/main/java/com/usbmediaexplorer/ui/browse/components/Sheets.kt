@@ -69,7 +69,7 @@ import com.usbmediaexplorer.ui.common.SheetGroupLabel
 import com.usbmediaexplorer.ui.common.SheetHeader
 import com.usbmediaexplorer.ui.common.bidiLtr
 import com.usbmediaexplorer.ui.common.bidiName
-import com.usbmediaexplorer.ui.common.iconForNode
+import com.usbmediaexplorer.ui.common.FileTypeIcon
 import com.usbmediaexplorer.ui.theme.AppSpacing
 
 /* ---------------------------------------------------------------------------
@@ -306,7 +306,12 @@ fun ItemActionsSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         SheetHeader(
-            icon = if (node != null) iconForNode(node) else Icons.Outlined.GridView,
+            icon = if (node != null) null else Icons.Outlined.GridView,
+            leading = if (node != null) {
+                { FileTypeIcon(node, Modifier.size(40.dp)) }
+            } else {
+                null
+            },
             title = if (multiple) {
                 stringResource(R.string.selection_count, items.size)
             } else {

@@ -4,7 +4,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -106,20 +105,16 @@ fun MediaThumbnail(
 
 @Composable
 private fun FallbackIcon(node: DocNode) {
-    val tint = if (node.kind == MediaKind.VIDEO) Color.White.copy(alpha = 0.82f)
+    val labelColor = if (node.kind == MediaKind.VIDEO) Color.White.copy(alpha = 0.82f)
     else MaterialTheme.colorScheme.onSurfaceVariant
     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-        Icon(
-            imageVector = iconFor(node.kind),
-            contentDescription = null,
-            tint = tint,
-            modifier = Modifier.fillMaxSize(0.34f),
-        )
+        // The coloured folded-corner document set: kind and extension read at a glance.
+        FileTypeIcon(node, modifier = Modifier.fillMaxSize(0.46f))
         if (node.extension.isNotEmpty() && !node.isDirectory) {
             Text(
                 text = node.extension.uppercase(),
                 style = MaterialTheme.typography.labelSmall,
-                color = tint,
+                color = labelColor,
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
