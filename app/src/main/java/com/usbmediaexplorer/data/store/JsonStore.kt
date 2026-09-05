@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
@@ -37,9 +38,8 @@ open class JsonStore(
         scope.launch { reload() }
     }
 
-    suspend fun reload() = mutex.withLock {
-        val parsed = readFromDisk()
-        _root.value = parsed
+    suspend fun reload() = withContext(Dispatchers.IO) {
+        mutex.withLock { _root.value = readFromDisk() }
     }
 
     private fun readFromDisk(): JSONObject {
@@ -47,13 +47,21 @@ open class JsonStore(
         return runCatching { JSONObject(file.readText(Charsets.UTF_8)) }.getOrElse { JSONObject() }
     }
 
-    /** Reads the store, mutating a copy and persisting it atomically. */
-    suspend fun <T> mutate(block: (JSONObject) -> T): T = mutex.withLock {
-        val current = if (_root.value.length() == 0) readFromDisk() else JSONObject(_root.value.toString())
-        val result = block(current)
-        writeToDisk(current)
-        _root.value = current
-        result
+    /**
+     * Reads the store, mutating a copy and persisting it atomically.
+     *
+     * The disk part always runs on [Dispatchers.IO]: callers are view-model scopes living on the
+     * main thread, and a JSON write there is a dropped frame every time a favorite or a recent
+     * entry is recorded.
+     */
+    suspend fun <T> mutate(block: (JSONObject) -> T): T = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val current = if (_root.value.length() == 0) readFromDisk() else JSONObject(_root.value.toString())
+            val result = block(current)
+            writeToDisk(current)
+            _root.value = current
+            result
+        }
     }
 
     private fun writeToDisk(json: JSONObject) {

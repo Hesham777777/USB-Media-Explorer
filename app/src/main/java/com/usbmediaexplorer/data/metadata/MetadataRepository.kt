@@ -7,6 +7,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import java.util.Collections
@@ -100,17 +101,52 @@ class MetadataRepository(
         }
     }
 
+    /** Resolved entries waiting for the next batched publish. */
+    private val pending = ConcurrentHashMap<String, MediaMetadata>()
+    private val publishGate = Any()
+    private var publishScheduled = false
+
+    /**
+     * Publishing a fresh snapshot per resolved file means a full map copy per file — O(n²) churn
+     * on a 2 000-file folder, and a list-rebuild trigger for every single duration resolved.
+     * Workers deposit into [pending]; one flusher emits at most a single snapshot per
+     * [PUBLISH_BATCH_MS] carrying everything resolved in that window.
+     */
     private fun publish(node: DocNode, metadata: MediaMetadata) {
-        val current = _published.value
-        if (current[node.key] == metadata) return
-        val next = LinkedHashMap(current)
-        next[node.key] = metadata
+        if (pending[node.key] == metadata || _published.value[node.key] == metadata) return
+        pending[node.key] = metadata
+        schedulePublishFlush()
+    }
+
+    private fun schedulePublishFlush() {
+        synchronized(publishGate) {
+            if (publishScheduled) return
+            publishScheduled = true
+        }
+        scope.launch {
+            delay(PUBLISH_BATCH_MS)
+            flushPending()
+            val more = pending.isNotEmpty()
+            synchronized(publishGate) { publishScheduled = false }
+            if (more) schedulePublishFlush()
+        }
+    }
+
+    private fun flushPending() {
+        if (pending.isEmpty()) return
+        val next = LinkedHashMap(_published.value)
+        val iterator = pending.entries.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            next[entry.key] = entry.value
+            iterator.remove()
+        }
         // Keep the published map bounded: cards that scrolled far away drop out of memory anyway.
         if (next.size > PUBLISH_LIMIT) {
-            val iterator = next.entries.iterator()
-            while (next.size > PUBLISH_LIMIT && iterator.hasNext()) {
-                iterator.next()
-                iterator.remove()
+            val evict = next.entries.iterator()
+            while (next.size > PUBLISH_LIMIT && evict.hasNext()) {
+                evict.next()
+                evict.remove()
             }
         }
         _published.value = next
@@ -119,6 +155,7 @@ class MetadataRepository(
     /** Called after a delete/rename so stale info does not survive. */
     suspend fun invalidate(node: DocNode) {
         memory.remove(node.key)
+        pending.remove(node.key)
         store.remove(node.key)
         _published.value = _published.value - node.key
     }
@@ -126,10 +163,12 @@ class MetadataRepository(
     suspend fun invalidateUri(uri: String) {
         store.removeByUri(uri)
         memory.keys.filter { it.startsWith("$uri|") }.forEach { memory.remove(it) }
+        pending.keys.filter { it.startsWith("$uri|") }.forEach { pending.remove(it) }
     }
 
     suspend fun clear() {
         memory.clear()
+        pending.clear()
         _published.value = emptyMap()
         store.clear()
     }
@@ -137,5 +176,6 @@ class MetadataRepository(
     private companion object {
         const val MEMORY_LIMIT = 512
         const val PUBLISH_LIMIT = 400
+        const val PUBLISH_BATCH_MS = 200L
     }
 }

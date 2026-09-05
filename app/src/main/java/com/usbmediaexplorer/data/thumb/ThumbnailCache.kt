@@ -8,6 +8,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
 
@@ -90,14 +91,16 @@ class ThumbnailCache(
     }
 
     /** Deletes one kind of cached bitmap only — covers can go while video frames stay. */
-    suspend fun clearKind(kind: String): Int = mutex.withLock {
-        val doomed = entries.values.filter { it.kind == kind }.map { it.key }
-        doomed.forEach { key ->
-            entries.remove(key)
-            runCatching { File(dir, "$key.webp").delete() }
+    suspend fun clearKind(kind: String): Int = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val doomed = entries.values.filter { it.kind == kind }.map { it.key }
+            doomed.forEach { key ->
+                entries.remove(key)
+                runCatching { File(dir, "$key.webp").delete() }
+            }
+            if (doomed.isNotEmpty()) dirty = true
+            doomed.size
         }
-        if (doomed.isNotEmpty()) dirty = true
-        doomed.size
     }
 
     suspend fun remove(key: String) = mutex.withLock {
@@ -126,55 +129,64 @@ class ThumbnailCache(
     suspend fun count(): Int = mutex.withLock { entries.size }
 
     /** LRU eviction down to [limitBytes]. Returns how many bytes were freed. */
-    suspend fun pruneTo(limitBytes: Long): Long = mutex.withLock {
-        val total = entries.values.sumOf { it.sizeBytes }
-        if (total <= limitBytes) return@withLock 0L
-        var freed = 0L
-        val byAccess = entries.values.sortedBy { it.lastAccess }
-        for (entry in byAccess) {
-            if (total - freed <= limitBytes) break
-            val file = File(dir, entry.key + ".webp")
-            val size = if (file.exists()) file.length() else entry.sizeBytes
-            runCatching { file.delete() }
-            entries.remove(entry.key)
-            freed += size
-            dirty = true
+    suspend fun pruneTo(limitBytes: Long): Long = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val total = entries.values.sumOf { it.sizeBytes }
+            if (total <= limitBytes) return@withLock 0L
+            var freed = 0L
+            val byAccess = entries.values.sortedBy { it.lastAccess }
+            for (entry in byAccess) {
+                if (total - freed <= limitBytes) break
+                val file = File(dir, entry.key + ".webp")
+                val size = if (file.exists()) file.length() else entry.sizeBytes
+                runCatching { file.delete() }
+                entries.remove(entry.key)
+                freed += size
+                dirty = true
+            }
+            freed
         }
-        freed
     }
 
     /**
      * Removes entries for files that no longer exist. Existence is probed lazily through
      * [existsProbe] so we only touch the drive for keys we actually hold.
      */
-    suspend fun cleanOrphans(existsProbe: suspend (String) -> Boolean): Int = mutex.withLock {
-        val nodeKeys = entries.values.map { it.nodeKey }.filter { it.isNotEmpty() }.distinct()
-        val missing = ArrayList<String>()
-        for (nodeKey in nodeKeys) {
-            val uri = nodeKey.substringBefore('|')
-            if (!existsProbe(uri)) missing += nodeKey
-        }
-        var removed = 0
-        for (nodeKey in missing) {
-            entries.values.filter { it.nodeKey == nodeKey }.map { it.key }.forEach { key ->
-                runCatching { File(dir, "$key.webp").delete() }
-                entries.remove(key)
-                removed++
+    suspend fun cleanOrphans(existsProbe: suspend (String) -> Boolean): Int =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                val nodeKeys = entries.values.map { it.nodeKey }.filter { it.isNotEmpty() }.distinct()
+                val missing = ArrayList<String>()
+                for (nodeKey in nodeKeys) {
+                    val uri = nodeKey.substringBefore('|')
+                    if (!existsProbe(uri)) missing += nodeKey
+                }
+                var removed = 0
+                for (nodeKey in missing) {
+                    entries.values.filter { it.nodeKey == nodeKey }.map { it.key }.forEach { key ->
+                        runCatching { File(dir, "$key.webp").delete() }
+                        entries.remove(key)
+                        removed++
+                    }
+                }
+                if (removed > 0) dirty = true
+                removed
             }
         }
-        if (removed > 0) dirty = true
-        removed
+
+    suspend fun clear(): Int = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val count = entries.size
+            entries.clear()
+            runCatching { dir.listFiles()?.forEach { it.delete() } }
+            dirty = true
+            count
+        }
     }
 
-    suspend fun clear(): Int = mutex.withLock {
-        val count = entries.size
-        entries.clear()
-        runCatching { dir.listFiles()?.forEach { it.delete() } }
-        dirty = true
-        count
-    }
+    suspend fun flush() = withContext(Dispatchers.IO) { flushBlocking() }
 
-    suspend fun flush() {
+    private suspend fun flushBlocking() {
         flushJob?.cancel()
         persist()
     }

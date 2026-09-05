@@ -145,7 +145,12 @@ class SearchEngine(
                 emit(SearchResult(matches.toList(), scanned, isRunning = true, truncated = truncated))
             }
         }
-        if (walked.isNotEmpty()) {
+        if (walked.size > MAX_SNAPSHOT_NODES) {
+            // A whole-volume root can hold tens of thousands of nodes; retaining all of them
+            // costs more memory than the re-walk it saves. The walk still yields matches; the
+            // debounce is what protects the drive from per-character re-scans.
+            snapshot = null
+        } else if (walked.isNotEmpty()) {
             snapshot = Snapshot(root.key, System.currentTimeMillis(), walked)
         }
         emit(SearchResult(matches.toList(), scanned, isRunning = false, truncated = truncated))
@@ -188,6 +193,8 @@ class SearchEngine(
 
     companion object {
         /** How long a finished walk stays reusable for in-memory filtering. */
+        /** Above this many walked nodes the snapshot costs more memory than it saves. */
+        const val MAX_SNAPSHOT_NODES = 15_000
         const val SNAPSHOT_TTL_MS = 2 * 60_000L
 
         private val episodePattern = Regex(

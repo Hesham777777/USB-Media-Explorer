@@ -286,12 +286,24 @@ class BrowseViewModel(
         }
     }
 
+    /**
+     * Folder tallies resolve one folder at a time, so a screen with many folders emits one
+     * snapshot per resolved folder — and every snapshot rebuilt and re-sorted the whole list.
+     * Same throttle as [metadataUi]: first snapshot passes, later ones batch.
+     */
+    private val countUi: kotlinx.coroutines.flow.Flow<Map<String, MediaCount>> = flow {
+        folderCounts.collect { snapshot ->
+            emit(snapshot)
+            delay(METADATA_UI_INTERVAL_MS)
+        }
+    }
+
     private val items: kotlinx.coroutines.flow.Flow<List<DocItem>> = combine(
         rawChildren,
         metadataUi,
         favorites,
         positions,
-        folderCounts,
+        countUi,
     ) { children, metadata, favoriteList, resumeMap, counts ->
         val favoriteUris = favoriteList.map { it.uri }.toHashSet()
         children.map { node ->
