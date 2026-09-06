@@ -39,10 +39,15 @@ object OpsSafety {
         /** Never let an extraction fill the volume completely. */
         const val FREE_MARGIN_BYTES = 64L * 1024 * 1024
 
-        /** Extraction budget in bytes; 0 means "cannot safely extract anything". */
+        /**
+         * Extraction budget in bytes; 0 means "cannot safely extract anything".
+         * Unknown free space (null) falls back to the hard cap alone — the margin only makes
+         * sense against a known amount; a reported 0 or negative free space extracts nothing.
+         */
         fun budgetBytes(freeBytes: Long?): Long {
-            val base = freeBytes?.takeIf { it > 0 } ?: TOTAL_CAP_BYTES
-            return minOf(base - FREE_MARGIN_BYTES, TOTAL_CAP_BYTES).coerceAtLeast(0L)
+            if (freeBytes == null) return TOTAL_CAP_BYTES
+            if (freeBytes <= 0) return 0L
+            return minOf(freeBytes - FREE_MARGIN_BYTES, TOTAL_CAP_BYTES).coerceAtLeast(0L)
         }
 
         /** Chunk-level check used while streaming an entry out. */
