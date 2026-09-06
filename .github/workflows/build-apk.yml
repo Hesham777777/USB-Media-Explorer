@@ -1,8 +1,9 @@
 name: Build APK
 
 # يبني ملف APK جاهزًا للتثبيت على أي push أو يدويًا من تبويب Actions.
-# النسختان (debug وrelease) موقّعتان بمفتاح ثابت مودَع في keystore/usbmedia.p12 حتى يُثبَّت
-# كل إصدار جديد فوق القديم مباشرة دون رسالة «App not installed» ودون فقدان بيانات المستخدم.
+# التوقيع: يفضّل الأسرار USBMEDIA_KEYSTORE_B64 + كلمات المرور (يحوّلها إلى keystore/ci.p12)،
+# ويرتد إلى المفتاح المودَع keystore/usbmedia.p12 حتى يكمل المالك خطوات SETUP_SIGNING.md
+# (تدوير المفتاح المسرّب). كل الخطوات مثبّتة بـSHA الكامل لا بوسوم متحركة (تدقيق CI).
 on:
   push:
     branches: [ main, 'arena/**' ]
@@ -14,8 +15,11 @@ on:
         type: boolean
         default: true
 
+# أقل صلاحية على مستوى المستودع: قراءة فقط. صلاحية الكتابة تُمنح للعمل الوحيدة أدناه
+# وحصرًا لأنها (أ) تنشر سجلات الفشل في الفرع نفسه — بيئات الشبكة المقيدة لا تستطيع قراءة
+# سجلات Actions برمجيًا — و(ب) تحدّث إصدار apk-latest.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: apk-${{ github.ref }}
@@ -23,26 +27,30 @@ concurrency:
 
 jobs:
   apk:
-    name: assembleDebug + artifact
+    name: build + test + lint + publish
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: write # see the top-level comment: failure logs + apk-latest release
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.0.0
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Set up Gradle 8.9
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@48b5f213c81028ace310571dc5ec0fbbca0b2947 # v4.4.0
         with:
           gradle-version: '8.9'
 
       # gradle-wrapper.jar ملف ثنائي غير مودَع في المستودع، لذا نولّده هنا.
+      # gradle-wrapper.properties يثبّت distributionSha256Sum الرسمي لتوزيعة 8.9، فلا يُقبل
+      # أي تنزيل مُعبَّث به.
       - name: Generate the Gradle wrapper
         run: gradle wrapper --gradle-version 8.9 --no-daemon
 
@@ -53,9 +61,30 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME"
           ls "$ANDROID_HOME/platforms" 2>/dev/null || true
 
+      # إن وُجد السر USBMEDIA_KEYSTORE_B64 يُكتب المفتاح الحقيقي (المُداوَر) إلى
+      # keystore/ci.p12 — وهو ملف متجاهَل في .gitignore ولا يعود أبدًا إلى المستودع.
+      # وإلا يرتد البناء إلى المفتاح المودَع مع تحذير صريح في السجل.
+      - name: Materialize signing keystore from secrets
+        env:
+          KEYSTORE_B64: ${{ secrets.USBMEDIA_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            mkdir -p keystore
+            printf '%s' "$KEYSTORE_B64" | base64 -d > keystore/ci.p12
+            echo "SIGNING_SOURCE=github-secret" >> "$GITHUB_ENV"
+            echo "Signing with the rotated key from repository secrets."
+          else
+            echo "SIGNING_SOURCE=committed-fallback" >> "$GITHUB_ENV"
+            echo "::warning::USBMEDIA_KEYSTORE_B64 is not set - building with the committed fallback key. Rotate it per SETUP_SIGNING.md."
+          fi
+
       - name: Build debug APK
         id: build
         continue-on-error: true
+        env:
+          USBMEDIA_STORE_PASSWORD: ${{ secrets.USBMEDIA_STORE_PASSWORD }}
+          USBMEDIA_KEY_ALIAS: ${{ secrets.USBMEDIA_KEY_ALIAS }}
+          USBMEDIA_KEY_PASSWORD: ${{ secrets.USBMEDIA_KEY_PASSWORD }}
         run: |
           set +e
           ./gradlew :app:assembleDebug --no-daemon --console=plain --stacktrace 2>&1 | tee build.log
@@ -95,24 +124,9 @@ jobs:
           echo "::error::Debug build failed - see ci-build-log.md on this branch for the compiler output."
           exit 1
 
-      - name: Collect APKs
-        if: steps.build.outcome == 'success'
-        run: |
-          mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk dist/USB-Media-Explorer-debug.apk
-          ls -la dist
-
-      - name: Upload debug APK
-        if: steps.build.outcome == 'success'
-        uses: actions/upload-artifact@v4
-        with:
-          name: USB-Media-Explorer-debug-apk
-          path: dist/USB-Media-Explorer-debug.apk
-          if-no-files-found: error
-          retention-days: 30
-
       # continue-on-error حتى نستطيع نشر تقرير الفشل من داخل المستودع، وخطوة
       # "Fail the run when the tests failed" below تُفشل التشغيل فعليًا.
+      # الاختبارات تسبق الآن رفع أي APK (تدقيق CI: لا يُنشر ناتج قبل اجتيازها).
       - name: Unit tests
         id: tests
         if: steps.build.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.run_tests)
@@ -152,12 +166,52 @@ jobs:
           echo "::error::Unit tests failed - see ci-test-log.md on this branch."
           exit 1
 
-      # نسخة release هي الآن التسليم الأساسي (موقّعة بالمفتاح الثابت ومصغّرة بـ R8)،
-      # لذا فشل بنائها يفشل التشغيل وينشر الأخطاء في المستودع مثل نسخة debug تمامًا.
+      # بوابة Lint: أي finding بخطورة Fatal يفشل التشغيل (تدقيق CI). الأخطاء الأقل خطورة
+      # تبقى في التقرير دون إيقاف التسليم — تشديد البوابة تدريجيًا أفضل من تعطيله.
+      - name: Android Lint (Fatal gate)
+        if: steps.build.outcome == 'success'
+        run: |
+          ./gradlew :app:lintDebug --no-daemon --console=plain 2>&1 | tee lint.log || true
+          REPORT=app/build/reports/lint-results-debug.xml
+          if [ ! -f "$REPORT" ]; then
+            echo "::warning::Lint XML report not found - Fatal gate skipped this run."
+            exit 0
+          fi
+          if grep -q 'severity="Fatal"' "$REPORT"; then
+            echo "::error::Android Lint reported Fatal-severity findings:"
+            grep -o 'id="[^"]*"' "$REPORT" | sort -u | head -40
+            exit 1
+          fi
+          echo "Lint gate passed: no Fatal findings."
+
+      - name: Collect APKs
+        if: steps.build.outcome == 'success'
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/USB-Media-Explorer-debug.apk
+          ls -la dist
+
+      # نسخة debug تبقى artifact للمطورين داخل سجل تشغيل Actions فقط؛ لم تعد تُنشر في
+      # الـReleases العامة (تدقيق: التوقف عن توزيع نسخة قابلة للت debugging علنًا).
+      - name: Upload debug APK (development artifact)
+        if: steps.build.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.0
+        with:
+          name: USB-Media-Explorer-debug-apk
+          path: dist/USB-Media-Explorer-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      # نسخة release هي التسليم الأساسي (موقّعة ومصغّرة بـ R8)، لذا فشل بنائها يفشل
+      # التشغيل وينشر الأخطاء في المستودع مثل نسخة debug تمامًا.
       - name: Build release APK (signed, R8)
         id: release_build
         if: steps.build.outcome == 'success'
         continue-on-error: true
+        env:
+          USBMEDIA_STORE_PASSWORD: ${{ secrets.USBMEDIA_STORE_PASSWORD }}
+          USBMEDIA_KEY_ALIAS: ${{ secrets.USBMEDIA_KEY_ALIAS }}
+          USBMEDIA_KEY_PASSWORD: ${{ secrets.USBMEDIA_KEY_PASSWORD }}
         run: |
           set +e
           ./gradlew :app:assembleRelease --no-daemon --console=plain --stacktrace 2>&1 | tee release.log
@@ -193,57 +247,58 @@ jobs:
           echo "::error::Release build failed - see ci-build-log.md on this branch for the compiler output."
           exit 1
 
+      # المسار الصريح app-release.apk مع if-no-files-found=error يعني أن بناءً غير موقّع
+      # (app-release-unsigned.apk) لا يمكن أن يتسرب إلى النشر أبدًا.
       - name: Upload release APK
         if: steps.release_build.outcome == 'success'
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.0
         with:
           name: USB-Media-Explorer-release-apk
-          path: app/build/outputs/apk/release/*.apk
-          if-no-files-found: ignore
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
           retention-days: 30
 
-      # الأصول القديمة الموقّعة بمفاتيح تطوير عشوائية تُربك التحديث؛ تُحذف حتى يبقى
-      # في الـRelease ملفان موقّعان بالمفتاح الثابت فقط.
+      # الأصول القديمة (غير الموقّعة، ونسخ debug المنشورة سابقًا) تُحذف من الـRelease حتى
+      # يبقى ملف واحد موقّع هو التسليم الرسمي.
       - name: Remove legacy release assets
-        if: steps.build.outcome == 'success'
+        if: steps.release_build.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete-asset apk-latest app-release-unsigned.apk --yes 2>/dev/null || true
+          gh release delete-asset apk-latest USB-Media-Explorer-debug.apk --yes 2>/dev/null || true
 
       # ينشر الـAPK في Release ثابت اسمه apk-latest حتى يبقى رابط التنزيل واحدًا
       # ولا يحتاج المستخدم للدخول إلى سجل تشغيل Actions في كل مرة.
-      - name: Publish APKs to the apk-latest release
-        if: steps.build.outcome == 'success'
-        uses: softprops/action-gh-release@v2
+      - name: Publish APK to the apk-latest release
+        if: steps.release_build.outcome == 'success'
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.3.0
         with:
           tag_name: apk-latest
           name: 'أحدث نسخة APK جاهزة — USB Media Explorer'
           body: |
             ملف APK مبني تلقائيًا من آخر commit على هذا الفرع.
 
-            - `app-release.apk` — **النسخة الموصى بها**: موقّعة بالمفتاح الثابت ومصغّرة بـ R8
-              (≈3.7MB بدل ≈23MB) — إقلاع أسرع وذاكرة أقل، وهي الأنسب للأجهزة منخفضة المواصفات.
-            - `USB-Media-Explorer-debug.apk` — نسخة التطوير الكاملة، تُثبَّت مباشرة أيضًا.
+            - `app-release.apk` — **النسخة الموصى بها والوحيدة المنشورة**: موقّعة ومصغّرة
+              بـ R8 (≈3.7MB بدل ≈23MB) — إقلاع أسرع وذاكرة أقل، وهي الأنسب للأجهزة منخفضة
+              المواصفات.
 
-            كلا الملفين موقّعان بمفتاح ثابت: أي إصدار جديد يُثبَّت **فوق** الإصدار السابق مباشرة
-            ويحافظ على بيانات المستخدم (المفضلة، المجلدات الأخيرة، مواضع التشغيل، كاش المصغرات).
-            ملاحظة لمرة واحدة فقط: النسخ المثبّتة قبل 2026-09-05 وُقّعت بمفاتيح تطوير عشوائية،
-            لذا يلزم إزالة تثبيتها يدويًا قبل تثبيت هذه النسخة.
+            كل إصدار جديد يُثبَّت **فوق** الإصدار السابق مباشرة ويحافظ على بيانات المستخدم
+            (المفضلة، المجلدات الأخيرة، مواضع التشغيل، كاش المصغرات).
+            استثناء لمرة واحدة: بعد تدوير مفتاح التوقيع (SETUP_SIGNING.md) ستختلف البصمة،
+            فيلزم إزالة تثبيت النسخة القديمة يدويًا قبل تثبيت أول نسخة بالمفتاح الجديد.
+
+            نسخة debug لم تعد تُنشر هنا لأسباب أمنية؛ تبقى متاحة للمطورين كـartifact داخل
+            سجل تشغيل Actions (تبويب Artifacts في آخر تشغيل ناجح).
 
             للتثبيت: انقل الملف إلى الهاتف ثم افتحه، وفعّل «التثبيت من مصادر غير معروفة» عند الطلب.
-          files: |
-            dist/USB-Media-Explorer-debug.apk
-            app/build/outputs/apk/release/*.apk
-          fail_on_unmatched_files: false
+          files: app/build/outputs/apk/release/app-release.apk
+          fail_on_unmatched_files: true
 
       - name: Publish GitHub Release (on tag)
-        if: startsWith(github.ref, 'refs/tags/v') && steps.build.outcome == 'success'
-        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v') && steps.release_build.outcome == 'success'
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.3.0
         with:
-          files: |
-            dist/USB-Media-Explorer-debug.apk
-            app/build/outputs/apk/release/*.apk
+          files: app/build/outputs/apk/release/app-release.apk
           generate_release_notes: true
-          fail_on_unmatched_files: false
+          fail_on_unmatched_files: true

@@ -22,23 +22,33 @@ android {
         resourceConfigurations += listOf("en", "ar")
     }
 
-    // A stable signing key committed to the repo. Without it every CI run auto-generates a
-    // fresh random debug keystore, so each published APK carries a different signature and
-    // Android refuses to update over the previous install ("App not installed"). With this key
-    // every build - debug and release - is signed identically, so updates install over the old
-    // version and keep user data (favorites, recents, playback positions, thumbnail cache).
-    // This key signs direct-install APKs only; replace it with proper secrets before any
-    // store publication.
+    // Signing (audit CRITICAL: the key + passwords were committed to a public repo).
+    //   1. CI materializes the rotated key from the USBMEDIA_KEYSTORE_B64 secret into
+    //      keystore/ci.p12 and exports USBMEDIA_STORE_PASSWORD / USBMEDIA_KEY_ALIAS /
+    //      USBMEDIA_KEY_PASSWORD — whenever present, those win.
+    //   2. Until the owner completes SETUP_SIGNING.md, the build falls back to the committed
+    //      keystore/usbmedia.p12 so published APKs keep update-compatible signatures.
+    // Without any explicit config, AGP would auto-generate a fresh random debug keystore per
+    // CI run and Android would refuse every update ("App not installed").
+    val secretKeystore = rootProject.file("keystore/ci.p12")
+    val committedKeystore = rootProject.file("keystore/usbmedia.p12")
+    val keystoreFile = when {
+        secretKeystore.exists() -> secretKeystore
+        committedKeystore.exists() -> committedKeystore
+        else -> null
+    }
     signingConfigs {
         create("stable") {
-            storeFile = rootProject.file("keystore/usbmedia.p12")
-            storePassword = "usbmedia"
-            keyAlias = "usbmedia"
-            keyPassword = "usbmedia"
+            storeFile = keystoreFile
+            // GitHub Actions sets declared-but-unconfigured secrets to the EMPTY string, so
+            // "not null" is not enough — only a non-empty env var overrides the fallback.
+            storePassword = System.getenv("USBMEDIA_STORE_PASSWORD")?.takeIf { it.isNotEmpty() } ?: "usbmedia"
+            keyAlias = System.getenv("USBMEDIA_KEY_ALIAS")?.takeIf { it.isNotEmpty() } ?: "usbmedia"
+            keyPassword = System.getenv("USBMEDIA_KEY_PASSWORD")?.takeIf { it.isNotEmpty() } ?: "usbmedia"
             storeType = "PKCS12"
         }
     }
-    val stableKeystoreExists = rootProject.file("keystore/usbmedia.p12").exists()
+    val stableKeystoreExists = keystoreFile != null
 
     buildTypes {
         debug {

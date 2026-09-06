@@ -22,6 +22,8 @@ app/release/
 # Keystores (never commit signing material)
 *.jks
 *.keystore
+*.p12
+keystore/ci.p12
 
 # Logs / profiling
 *.log

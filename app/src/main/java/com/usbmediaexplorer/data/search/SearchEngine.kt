@@ -75,7 +75,6 @@ class SearchEngine(
      */
     private data class Snapshot(val rootKey: String, val at: Long, val nodes: List<DocNode>)
 
-    @Volatile
     // Written by the IO-dispatched search flow, cleared by invalidate() from the app scope.
     @Volatile
     private var snapshot: Snapshot? = null
