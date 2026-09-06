@@ -129,11 +129,17 @@ class AppContainer(private val context: Context) {
         }
         // Any finished file operation may have added, removed or renamed files: the search
         // snapshot must never keep answering from a stale tree (audit item 7).
+        // runCatching: an uncaught exception in an appScope child reaches the thread handler
+        // and would kill the whole process — a broken observer must never be fatal.
         appScope.launch {
-            fileOpsManager.events.collect { event ->
-                if (event is OpsEvent.Completed || event is OpsEvent.Failed) {
-                    searchEngine.invalidate()
+            runCatching {
+                fileOpsManager.events.collect { event ->
+                    if (event is OpsEvent.Completed || event is OpsEvent.Failed) {
+                        searchEngine.invalidate()
+                    }
                 }
+            }.onFailure { t ->
+                android.util.Log.e("AppContainer", "ops event observer failed", t)
             }
         }
     }
