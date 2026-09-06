@@ -195,12 +195,3 @@ require(!docRepository.isSameOrDescendant(destination, source)) {
 - TalkBack، حجم خط 200%، RTL، وتباين الألوان.
 
 الأدوات المقترحة: Android Lint، Detekt، Ktlint، Semgrep، MobSF، JADX، apksigner، OSV-Scanner، Gradle dependency verification، Jazzer للفuzzing، Macrobenchmark، Baseline Profiles، Perfetto، heapprofd وBattery Historian.
-
-## خارطة الإصلاح
-
-- خلال 24 ساعة: إيقاف النشر، إلغاء المفتاح، تعطيل إصدار `apk-latest` من الفروع.
-- خلال 3 أيام: إصلاح النقل والنسخ الذاتي وZIP والنسخ الاحتياطي، مع اختبارات فشل I/O.
-- خلال أسبوع: إعادة بناء CI، إصلاح الصلاحيات والبحث وAtomicFile، وإضافة Lint وSAST.
-- خلال 2–4 أسابيع: سجل عمليات مستديم، طابور نقل محدود، Room للفهرسة، اختبارات أجهزة وأداء وإمكانية وصول.
-
-حالة الإصدار الحالية: **يجب عدم نشره أو استخدامه لنقل بيانات مهمة قبل إصلاح البندين الحرجين واختبار حالات انقطاع USB وامتلاء الوجهة.**
