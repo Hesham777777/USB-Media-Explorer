@@ -20,6 +20,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.outlined.AdminPanelSettings
+import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.PermMedia
+import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CleaningServices
@@ -188,7 +195,7 @@ fun SettingsScreen(snackbarHostState: SnackbarHostState) {
             verticalArrangement = Arrangement.spacedBy(AppSpacing.sm),
         ) {
             /* ---------------- appearance ---------------- */
-            SectionTitle(stringResource(R.string.setting_appearance))
+            SectionTitle(stringResource(R.string.setting_appearance), Icons.Outlined.Palette)
             SettingsCard {
                 ClickRow(
                     title = stringResource(R.string.setting_theme),
@@ -217,7 +224,7 @@ fun SettingsScreen(snackbarHostState: SnackbarHostState) {
             }
 
             /* ---------------- browsing ---------------- */
-            SectionTitle(stringResource(R.string.settings_section_browse))
+            SectionTitle(stringResource(R.string.settings_section_browse), Icons.Outlined.FolderOpen)
             SettingsCard {
                 ClickRow(
                     title = stringResource(R.string.view_mode),
@@ -242,6 +249,12 @@ fun SettingsScreen(snackbarHostState: SnackbarHostState) {
                     subtitle = stringResource(R.string.setting_show_hidden_desc),
                     checked = settings.showHiddenFiles,
                     onChange = { scope.launch { container.settingsRepository.setShowHidden(it) } },
+                )
+                SwitchRow(
+                    title = stringResource(R.string.setting_show_technical_paths),
+                    subtitle = stringResource(R.string.setting_show_technical_paths_desc),
+                    checked = settings.showTechnicalPaths,
+                    onChange = { scope.launch { container.settingsRepository.setShowTechnicalPaths(it) } },
                 )
                 SwitchRow(
                     title = stringResource(R.string.setting_show_extensions),
@@ -270,7 +283,7 @@ fun SettingsScreen(snackbarHostState: SnackbarHostState) {
             }
 
             /* ---------------- media previews ---------------- */
-            SectionTitle(stringResource(R.string.settings_section_media))
+            SectionTitle(stringResource(R.string.settings_section_media), Icons.Outlined.PermMedia)
             SettingsCard {
                 SwitchRow(
                     title = stringResource(R.string.setting_video_thumbs),
@@ -332,7 +345,7 @@ fun SettingsScreen(snackbarHostState: SnackbarHostState) {
             }
 
             /* ---------------- playback ---------------- */
-            SectionTitle(stringResource(R.string.setting_player))
+            SectionTitle(stringResource(R.string.setting_player), Icons.Outlined.PlayCircle)
             SettingsCard {
                 SwitchRow(
                     title = stringResource(R.string.setting_resume_prompt),
@@ -361,7 +374,7 @@ fun SettingsScreen(snackbarHostState: SnackbarHostState) {
             }
 
             /* ---------------- storage ---------------- */
-            SectionTitle(stringResource(R.string.settings_section_storage))
+            SectionTitle(stringResource(R.string.settings_section_storage), Icons.Outlined.Storage)
             SettingsCard {
                 volumes.forEach { volume ->
                     VolumeRow(
@@ -395,7 +408,7 @@ fun SettingsScreen(snackbarHostState: SnackbarHostState) {
             }
 
             /* ---------------- cache ---------------- */
-            SectionTitle(stringResource(R.string.setting_cache))
+            SectionTitle(stringResource(R.string.setting_cache), Icons.Outlined.CleaningServices)
             SettingsCard {
                 InfoRow(
                     title = stringResource(R.string.setting_cache_used),
@@ -464,7 +477,7 @@ fun SettingsScreen(snackbarHostState: SnackbarHostState) {
             }
 
             /* ---------------- permissions ---------------- */
-            SectionTitle(stringResource(R.string.settings_section_permissions))
+            SectionTitle(stringResource(R.string.settings_section_permissions), Icons.Outlined.AdminPanelSettings)
             SettingsCard {
                 permissionStates.forEach { (permission, granted) ->
                     PermissionRow(
@@ -509,7 +522,7 @@ fun SettingsScreen(snackbarHostState: SnackbarHostState) {
             }
 
             /* ---------------- privacy ---------------- */
-            SectionTitle(stringResource(R.string.settings_section_privacy))
+            SectionTitle(stringResource(R.string.settings_section_privacy), Icons.Outlined.Lock)
             SettingsCard {
                 ActionRow(
                     title = stringResource(R.string.privacy_clear_recents),
@@ -537,7 +550,7 @@ fun SettingsScreen(snackbarHostState: SnackbarHostState) {
             }
 
             /* ---------------- about ---------------- */
-            SectionTitle(stringResource(R.string.setting_about))
+            SectionTitle(stringResource(R.string.setting_about), Icons.Outlined.Info)
             SettingsCard {
                 InfoRow(
                     title = stringResource(R.string.app_name),
@@ -807,14 +820,27 @@ private fun sortLabel(mode: SortMode): Int = when (mode) {
  * ------------------------------------------------------------------------- */
 
 @Composable
-private fun SectionTitle(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.primary,
+private fun SectionTitle(title: String, icon: ImageVector? = null) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(top = AppSpacing.md, bottom = 2.dp, start = AppSpacing.xs),
-    )
+    ) {
+        if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
 }
 
 @Composable

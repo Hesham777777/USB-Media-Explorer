@@ -24,6 +24,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -37,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,6 +50,7 @@ import com.usbmediaexplorer.data.volume.VolumeInfo
 import com.usbmediaexplorer.data.volume.VolumeKind
 import com.usbmediaexplorer.data.volume.VolumeState
 import com.usbmediaexplorer.ui.common.InfoRow
+import com.usbmediaexplorer.ui.common.LocalSettings
 import com.usbmediaexplorer.ui.common.PressableSurface
 import com.usbmediaexplorer.ui.common.SheetGroupLabel
 import com.usbmediaexplorer.ui.common.SheetHeader
@@ -91,6 +94,7 @@ fun StorageCard(
     val accent = volumeColor(volume.kind)
     val extended = AppTheme.extended
     var menuOpen by remember { mutableStateOf(false) }
+    val settings = LocalSettings.current
 
     val stateColor = when (volume.state) {
         VolumeState.READY -> extended.success
@@ -134,7 +138,7 @@ fun StorageCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    val subtitle = cardSubtitle(volume)
+                    val subtitle = cardSubtitle(volume, settings.showTechnicalPaths)
                     if (subtitle.isNotEmpty()) {
                         Text(
                             text = subtitle.bidiLtr(),
@@ -287,6 +291,17 @@ private fun CompactSpace(volume: VolumeInfo, stateColor: Color, mounted: Boolean
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                Spacer(Modifier.height(4.dp))
+                LinearProgressIndicator(
+                    progress = { volume.progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(5.dp)
+                        .clip(RoundedCornerShape(AppRadius.pill)),
+                    color = stateColor,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    strokeCap = StrokeCap.Round,
+                )
             }
         } else {
             Text(
@@ -322,6 +337,17 @@ private fun WideSpace(volume: VolumeInfo, stateColor: Color, accent: Color) {
                 SpaceLine(stringResource(R.string.label_size), Formatters.size(total), accent)
                 SpaceLine(stringResource(R.string.volume_used_label), Formatters.size(total - free), stateColor)
                 SpaceLine(stringResource(R.string.volume_free_label), Formatters.size(free), stateColor)
+                LinearProgressIndicator(
+                    progress = { volume.progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp)
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(AppRadius.pill)),
+                    color = stateColor,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    strokeCap = StrokeCap.Round,
+                )
             }
         } else {
             Text(
@@ -353,9 +379,9 @@ private fun SpaceLine(label: String, value: String, color: Color) {
 
 /** `FAT32 • 1234-ABCD` — technical identity, kept to one line and never mirrored by RTL. */
 @Composable
-private fun cardSubtitle(volume: VolumeInfo): String {
+private fun cardSubtitle(volume: VolumeInfo, technical: Boolean = false): String {
     val parts = ArrayList<String>(3)
-    FileSystemProbe.labelFor(volume.fileSystem)?.let { parts += it }
+    if (technical) FileSystemProbe.labelFor(volume.fileSystem)?.let { parts += it }
     volume.deviceLabel?.let { parts += it }
     if (parts.isEmpty()) {
         volume.description?.let { parts += it }
@@ -367,13 +393,15 @@ private fun cardSubtitle(volume: VolumeInfo): String {
 @Composable
 fun VolumeDetailsSheet(volume: VolumeInfo, onDismiss: () -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val settings = LocalSettings.current
     val total = volume.totalBytes ?: 0L
     val free = volume.freeBytes ?: 0L
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         SheetHeader(
             icon = volumeIcon(volume.kind),
             title = volume.name,
-            subtitle = cardSubtitle(volume).ifEmpty { stringResource(R.string.volume_unknown) },
+            subtitle = cardSubtitle(volume, settings.showTechnicalPaths)
+                .ifEmpty { stringResource(R.string.volume_unknown) },
         )
         Column(
             Modifier
@@ -429,18 +457,22 @@ fun VolumeDetailsSheet(volume: VolumeInfo, onDismiss: () -> Unit) {
                     },
                 ),
             )
-            volume.fileSystem?.let {
-                InfoRow(
-                    stringResource(R.string.label_filesystem),
-                    FileSystemProbe.labelFor(it) ?: it,
-                    ltrValue = true,
-                )
-            }
-            volume.description?.takeIf { it.isNotBlank() }?.let {
-                InfoRow(stringResource(R.string.volume_mount_label), it, ltrValue = true)
-            }
-            volume.uuid?.takeIf { it.isNotBlank() }?.let {
-                InfoRow(stringResource(R.string.volume_id_label), it, ltrValue = true)
+            // Mount points, file systems and UUIDs are advanced identity: hidden unless the
+            // user opts in — the ordinary reader needs the name, the state and the numbers.
+            if (settings.showTechnicalPaths) {
+                volume.fileSystem?.let {
+                    InfoRow(
+                        stringResource(R.string.label_filesystem),
+                        FileSystemProbe.labelFor(it) ?: it,
+                        ltrValue = true,
+                    )
+                }
+                volume.description?.takeIf { it.isNotBlank() }?.let {
+                    InfoRow(stringResource(R.string.volume_mount_label), it, ltrValue = true)
+                }
+                volume.uuid?.takeIf { it.isNotBlank() }?.let {
+                    InfoRow(stringResource(R.string.volume_id_label), it, ltrValue = true)
+                }
             }
             InfoRow(
                 stringResource(R.string.volume_access_label),

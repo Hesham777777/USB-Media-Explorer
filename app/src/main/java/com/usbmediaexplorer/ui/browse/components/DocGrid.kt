@@ -118,8 +118,8 @@ fun DocItemsView(
         columns = GridCells.Fixed(columns),
         modifier = modifier.fillMaxSize(),
         contentPadding = contentPadding,
-        horizontalArrangement = Arrangement.spacedBy(AppSpacing.md),
-        verticalArrangement = Arrangement.spacedBy(AppSpacing.md),
+        horizontalArrangement = Arrangement.spacedBy(AppSpacing.gridGap),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.gridGap),
     ) {
         items(items, key = { it.node.key }) { item ->
             LaunchedEffect(item.node.key) { onVisible(item.node) }
@@ -239,7 +239,7 @@ fun DocCard(
             Column(
                 Modifier.padding(
                     horizontal = if (compact) 8.dp else 10.dp,
-                    vertical = if (compact) 6.dp else 8.dp,
+                    vertical = if (compact) 4.dp else 6.dp,
                 ),
             ) {
                 Text(
@@ -334,7 +334,9 @@ fun DocRow(
                     } else {
                         MaterialTheme.typography.titleSmall
                     },
-                    maxLines = 1,
+                    // Two lines before the ellipsis: long Arabic file names lose too much
+                    // meaning to a "..." after one line.
+                    maxLines = if (compact) 1 else 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (!compact && settings.showMediaInfo) {

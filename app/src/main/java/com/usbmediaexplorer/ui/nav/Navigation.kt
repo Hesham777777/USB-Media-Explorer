@@ -47,6 +47,13 @@ object Routes {
 /** Thin, type-safe wrapper over [NavHostController] shared by every screen. */
 class AppNavigator(private val navController: NavHostController) {
 
+    /** Back to the storage dashboard: pops when home is on the back stack, navigates otherwise. */
+    fun home() {
+        if (!navController.popBackStack(Routes.HOME, inclusive = false)) {
+            navController.navigate(Routes.HOME)
+        }
+    }
+
     fun openVolume(uri: Uri) = navController.navigate(Routes.browse(uri))
 
     fun openFolder(uri: Uri) = navController.navigate(Routes.browse(uri))

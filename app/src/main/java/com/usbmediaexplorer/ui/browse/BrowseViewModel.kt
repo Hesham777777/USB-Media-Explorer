@@ -845,10 +845,13 @@ class BrowseViewModel(
     }
 
     /** The next view mode in the cycle, for the one-tap switcher in the action bar (spec §6). */
+    /**
+     * Cycles through the three modes the UI offers — big grid, small grid, list. A mode that is
+     * not in the cycle (an older saved preference) lands on the small grid, the default.
+     */
     fun cycleViewMode() {
-        val current = state.value.viewMode
-        val all = ViewMode.entries
-        val next = all[(all.indexOf(current) + 1) % all.size]
+        val cycle = listOf(ViewMode.GRID_LARGE, ViewMode.GRID_SMALL, ViewMode.LIST)
+        val next = cycle[(cycle.indexOf(state.value.viewMode) + 1) % cycle.size]
         setViewMode(next)
     }
 

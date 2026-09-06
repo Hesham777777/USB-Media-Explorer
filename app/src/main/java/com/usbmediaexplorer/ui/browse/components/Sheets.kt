@@ -15,6 +15,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.NoteAdd
+import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ContentCut
 import androidx.compose.material.icons.outlined.Dashboard
@@ -45,6 +48,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -95,7 +99,9 @@ fun ViewModeSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = AppSpacing.xxl),
         ) {
-            ViewMode.entries.forEach { mode ->
+            // The three modes users choose from; the remaining enum entries stay as saved
+            // per-folder preferences but are no longer offered.
+            listOf(ViewMode.GRID_LARGE, ViewMode.GRID_SMALL, ViewMode.LIST).forEach { mode ->
                 SheetAction(
                     icon = iconForViewMode(mode),
                     label = stringResource(labelForViewMode(mode)),
@@ -276,6 +282,45 @@ fun labelForSort(mode: SortMode): Int = when (mode) {
 /* ---------------------------------------------------------------------------
  * Item / folder context sheet (spec §8, §9): grouped, never a flat wall
  * ------------------------------------------------------------------------- */
+
+/**
+ * The "+" FAB destination: create a folder or an empty file in the current location. A sheet
+ * instead of two FABs — one obvious entry point, two labelled actions.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CreateSheet(
+    onFolder: () -> Unit,
+    onFile: () -> Unit,
+    onDismiss: () -> Unit,
+    sheetState: SheetState = rememberModalBottomSheetState(),
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        SheetHeader(
+            icon = Icons.Outlined.Add,
+            title = stringResource(R.string.create_new_title),
+            subtitle = stringResource(R.string.create_new_hint),
+        )
+        Column(Modifier.padding(bottom = AppSpacing.xxl)) {
+            SheetAction(
+                icon = Icons.Outlined.CreateNewFolder,
+                label = stringResource(R.string.action_new_folder),
+                onClick = {
+                    onDismiss()
+                    onFolder()
+                },
+            )
+            SheetAction(
+                icon = Icons.Outlined.NoteAdd,
+                label = stringResource(R.string.action_new_file),
+                onClick = {
+                    onDismiss()
+                    onFile()
+                },
+            )
+        }
+    }
+}
 
 @Composable
 fun ItemActionsSheet(

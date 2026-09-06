@@ -42,6 +42,7 @@ class SettingsRepository(private val context: Context) {
         val SORT_MODE = stringPreferencesKey("sort_mode")
         val FOLDERS_FIRST = booleanPreferencesKey("folders_first")
         val SHOW_HIDDEN = booleanPreferencesKey("show_hidden")
+        val SHOW_TECH_PATHS = booleanPreferencesKey("show_technical_paths")
         val SHOW_EXTENSIONS = booleanPreferencesKey("show_extensions")
         val SHOW_MEDIA_INFO = booleanPreferencesKey("show_media_info")
         val ITEM_SCALE = stringPreferencesKey("item_scale")
@@ -89,6 +90,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setDefaultSortMode(value: SortMode) = set(Keys.SORT_MODE, value.name)
     suspend fun setFoldersFirst(value: Boolean) = set(Keys.FOLDERS_FIRST, value)
     suspend fun setShowHidden(value: Boolean) = set(Keys.SHOW_HIDDEN, value)
+    suspend fun setShowTechnicalPaths(value: Boolean) = set(Keys.SHOW_TECH_PATHS, value)
     suspend fun setShowExtensions(value: Boolean) = set(Keys.SHOW_EXTENSIONS, value)
     suspend fun setShowMediaInfo(value: Boolean) = set(Keys.SHOW_MEDIA_INFO, value)
     suspend fun setItemScale(value: ItemScale) = set(Keys.ITEM_SCALE, value.name)
@@ -122,10 +124,11 @@ class SettingsRepository(private val context: Context) {
         themeMode = enumOrDefault(this[Keys.THEME], ThemeMode.SYSTEM),
         dynamicColor = this[Keys.DYNAMIC_COLOR] ?: true,
         languageMode = enumOrDefault(this[Keys.LANGUAGE], LanguageMode.SYSTEM),
-        defaultViewMode = enumOrDefault(this[Keys.VIEW_MODE], ViewMode.GRID_MEDIUM),
+        defaultViewMode = enumOrDefault(this[Keys.VIEW_MODE], ViewMode.GRID_SMALL),
         defaultSortMode = enumOrDefault(this[Keys.SORT_MODE], SortMode.NAME_ASC),
         foldersFirst = this[Keys.FOLDERS_FIRST] ?: true,
         showHiddenFiles = this[Keys.SHOW_HIDDEN] ?: false,
+        showTechnicalPaths = this[Keys.SHOW_TECH_PATHS] ?: false,
         showExtensions = this[Keys.SHOW_EXTENSIONS] ?: true,
         showMediaInfo = this[Keys.SHOW_MEDIA_INFO] ?: true,
         itemScale = enumOrDefault(this[Keys.ITEM_SCALE], ItemScale.NORMAL),
@@ -159,6 +162,7 @@ class SettingsRepository(private val context: Context) {
         this[Keys.SORT_MODE] = settings.defaultSortMode.name
         this[Keys.FOLDERS_FIRST] = settings.foldersFirst
         this[Keys.SHOW_HIDDEN] = settings.showHiddenFiles
+        this[Keys.SHOW_TECH_PATHS] = settings.showTechnicalPaths
         this[Keys.SHOW_EXTENSIONS] = settings.showExtensions
         this[Keys.SHOW_MEDIA_INFO] = settings.showMediaInfo
         this[Keys.ITEM_SCALE] = settings.itemScale.name

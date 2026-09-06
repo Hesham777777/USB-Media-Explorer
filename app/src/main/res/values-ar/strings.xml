@@ -421,6 +421,11 @@
     <string name="perm_media_selected">صور وفيديوهات محددة</string>
     <string name="perm_storage_read">التخزين (إصدارات أندرويد الأقدم)</string>
     <string name="perm_notifications">الإشعارات لعمليات النقل</string>
+    <string name="action_home">الرئيسية</string>
+    <string name="create_new_title">إنشاء</string>
+    <string name="create_new_hint">مجلد أو ملف جديد في هذا الموقع</string>
+    <string name="setting_show_technical_paths">المسارات التقنية (متقدم)</string>
+    <string name="setting_show_technical_paths_desc">إظهار أنظمة الملفات ونقاط التركيب ومعرّفات الوحدات في تفاصيل وحدة التخزين</string>
     <string name="perm_all_files">الوصول إلى كل الملفات</string>
     <string name="perm_other">صلاحية أخرى</string>
     <string name="perm_state_granted">ممنوحة</string>

@@ -101,10 +101,16 @@ data class AppSettings(
     val languageMode: LanguageMode = LanguageMode.SYSTEM,
 
     // Browsing
-    val defaultViewMode: ViewMode = ViewMode.GRID_MEDIUM,
+    val defaultViewMode: ViewMode = ViewMode.GRID_SMALL,
     val defaultSortMode: SortMode = SortMode.NAME_ASC,
     val foldersFirst: Boolean = true,
     val showHiddenFiles: Boolean = false,
+    /**
+     * Technical identity of volumes (file system, mount point, UUID) stays out of the home and
+     * volume details unless this advanced option is on: ordinary users read names and numbers,
+     * not paths.
+     */
+    val showTechnicalPaths: Boolean = false,
     /** Show the extension next to a file name (`movie.mkv`) instead of the bare name. */
     val showExtensions: Boolean = true,
     /** Show size/duration/resolution under each item. Turning it off gives a cleaner grid. */

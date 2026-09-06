@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.Icon
@@ -34,6 +35,7 @@ fun BreadcrumbBar(
     trail: List<DocNode>,
     onNavigate: (DocNode) -> Unit,
     modifier: Modifier = Modifier,
+    onHome: (() -> Unit)? = null,
 ) {
     if (trail.isEmpty()) return
     val scrollState = rememberScrollState()
@@ -44,6 +46,34 @@ fun BreadcrumbBar(
             .padding(horizontal = 8.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (onHome != null) {
+            // "الرئيسية ‹ Download ‹ Movies": the dashboard is the first crumb, so there is
+            // always a visible way up and out of a deep folder.
+            TextButton(
+                onClick = onHome,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Home,
+                    contentDescription = stringResource(R.string.action_home),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(15.dp),
+                )
+                Spacer(Modifier.width(3.dp))
+                Text(
+                    text = stringResource(R.string.action_home),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(16.dp),
+            )
+        }
         Icon(
             imageVector = Icons.Outlined.Storage,
             contentDescription = stringResource(R.string.cd_volume_icon),

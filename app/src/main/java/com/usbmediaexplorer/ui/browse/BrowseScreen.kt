@@ -33,6 +33,7 @@ import androidx.compose.material.icons.outlined.FolderZip
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.NoteAdd
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.RestartAlt
@@ -51,6 +52,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -88,6 +90,7 @@ import com.usbmediaexplorer.data.doc.MediaCount
 import com.usbmediaexplorer.data.settings.ViewMode
 import com.usbmediaexplorer.data.doc.isArchive
 import com.usbmediaexplorer.ui.browse.components.BreadcrumbBar
+import com.usbmediaexplorer.ui.browse.components.CreateSheet
 import com.usbmediaexplorer.ui.browse.components.DetailsSheet
 import com.usbmediaexplorer.ui.browse.components.DocItemsView
 import com.usbmediaexplorer.ui.browse.components.ItemActionsSheet
@@ -156,6 +159,7 @@ fun BrowseScreen(
     var renameTarget by remember { mutableStateOf<DocNode?>(null) }
     var showNewFolder by remember { mutableStateOf(false) }
     var showNewFile by remember { mutableStateOf(false) }
+    var showCreateSheet by remember { mutableStateOf(false) }
     var showZipDialog by remember { mutableStateOf(false) }
     var showBulkRename by remember { mutableStateOf(false) }
     var deleteTargets by remember { mutableStateOf<List<DocNode>?>(null) }
@@ -211,6 +215,24 @@ fun BrowseScreen(
     val selectedNodes = remember(selectedItems) { selectedItems.map { it.node } }
 
     Scaffold(
+        floatingActionButton = {
+            // One obvious creation entry point: "+" opens a sheet with folder/file. It follows
+            // writability — no dead button on a read-only volume, and it steps aside for the
+            // selection toolbar.
+            if (state.canWrite && !state.selecting) {
+                FloatingActionButton(
+                    onClick = { showCreateSheet = true },
+                    shape = RoundedCornerShape(AppRadius.lg),
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ) {
+                    Icon(
+                        Icons.Outlined.Add,
+                        contentDescription = stringResource(R.string.create_new_title),
+                    )
+                }
+            }
+        },
         topBar = {
             if (state.selecting) {
                 SelectionTopBar(
@@ -453,16 +475,18 @@ fun BrowseScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            if (state.breadcrumb.size > 1 && !state.selecting) {
+            if (state.breadcrumb.isNotEmpty() && !state.selecting) {
                 BreadcrumbBar(
                     trail = state.breadcrumb,
                     onNavigate = { node -> navigator.openFolder(node.uri) },
+                    onHome = { navigator.home() },
                 )
             }
 
             // ---- the action row: search field or filter chips --------------
             if (!state.selecting) {
                 if (searching) {
+                  Column(Modifier.fillMaxWidth()) {
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -514,6 +538,18 @@ fun BrowseScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                    // Type filters while searching: the pipeline already intersects the query
+                    // with the kind filter, so the very same chips narrow the results.
+                    FilterChips(
+                        current = state.kindFilter,
+                        counts = state.mediaCount,
+                        total = state.totalCount,
+                        onSelect = { viewModel.setKindFilter(it) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = AppSpacing.md),
+                    )
+                  }
                 } else if (state.items.isNotEmpty() || state.isFiltered) {
                     Row(
                         Modifier
@@ -728,6 +764,14 @@ fun BrowseScreen(
                 renameTarget = null
             },
             onDismiss = { renameTarget = null },
+        )
+    }
+
+    if (showCreateSheet) {
+        CreateSheet(
+            onFolder = { showNewFolder = true },
+            onFile = { showNewFile = true },
+            onDismiss = { showCreateSheet = false },
         )
     }
 

@@ -422,6 +422,11 @@
     <string name="perm_media_selected">Selected photos and videos</string>
     <string name="perm_storage_read">Storage (older Android)</string>
     <string name="perm_notifications">Notifications for transfers</string>
+    <string name="action_home">Home</string>
+    <string name="create_new_title">Create</string>
+    <string name="create_new_hint">A new folder or file in this location</string>
+    <string name="setting_show_technical_paths">Technical paths (advanced)</string>
+    <string name="setting_show_technical_paths_desc">Show file systems, mount points and volume IDs in volume details</string>
     <string name="perm_all_files">All files access</string>
     <string name="perm_other">Other permission</string>
     <string name="perm_state_granted">Granted</string>
