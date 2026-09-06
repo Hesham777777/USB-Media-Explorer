@@ -162,7 +162,7 @@ class VolumeRepository(
 
         // Two ways in: the runtime media permission (raw paths, media files), or a SAF tree grant
         // on primary storage, which needs no runtime permission at all and also exposes documents.
-        val mediaAccess = Permissions.hasMediaAccess(context)
+        val storageAccess = Permissions.hasStorageAccess(context)
         val primaryTree = trees.firstOrNull { DocUri.isPrimaryStorage(it) }
         primaryTree?.let { consumedTrees += it.toString() }
 
@@ -182,8 +182,8 @@ class VolumeRepository(
         // paths (Android 10 scoped storage, some OEM builds) never shows a "ready" volume that
         // then lists nothing.
         val listsNow = runCatching { internalDir.listFiles() }.getOrNull()?.isNotEmpty() == true
-        val rawPathsUsable = mediaAccess && listsNow
-        val runtimeGrantWillHelp = !mediaAccess && rawPathsPossible
+        val rawPathsUsable = storageAccess && listsNow
+        val runtimeGrantWillHelp = !storageAccess && rawPathsPossible
 
         // NOTE: File.canRead() is not a permission check — on Android 10+ it answers true for
         // /storage/emulated/0 even with every permission denied, which used to show an "accessible"
@@ -246,7 +246,17 @@ class VolumeRepository(
                 trees.firstOrNull { DocUri.volumeUuid(it)?.equals(id, ignoreCase = true) == true }
             }
             val dirFile = directoryOf(volume, uuid)
-            val pathReadable = dirFile?.canRead() == true
+            // File.canRead() is not a permission check — on Android 10+ it answers true for a
+            // removable mount even with every permission denied, which used to show a "ready"
+            // USB drive that then listed nothing. Probe for real, and only where the platform
+            // lets raw paths work at all: legacy Android 10, or all-files access on 11+.
+            val rawRemovablePossible = when {
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.Q -> true
+                Build.VERSION.SDK_INT == Build.VERSION_CODES.Q -> Environment.isExternalStorageLegacy()
+                else -> Permissions.hasAllFilesAccess()
+            }
+            val pathReadable = rawRemovablePossible && storageAccess &&
+                dirFile?.let { runCatching { it.listFiles() }.getOrNull() } != null
             if (uuid != null) matchedUuids += uuid
 
             val state = when {
@@ -283,6 +293,13 @@ class VolumeRepository(
                 deviceLabel = if (kind == VolumeKind.USB) usbLabel else null,
                 description = description,
                 grantIntent = if (state == VolumeState.NEEDS_PERMISSION) grantIntentFor(volume, dirFile) else null,
+                // On legacy Android (<= 10) the one storage-permission dialog unlocks removable
+                // mounts too, so USB/SD should ask for that instead of a SAF tree picker.
+                grantKind = if (state == VolumeState.NEEDS_PERMISSION && !storageAccess && rawRemovablePossible) {
+                    GrantKind.RUNTIME_MEDIA
+                } else {
+                    GrantKind.SAF_TREE
+                },
                 isUsbAttached = kind == VolumeKind.USB && usbDevices.isNotEmpty(),
             )
         }

@@ -484,6 +484,23 @@ fun SettingsScreen(snackbarHostState: SnackbarHostState) {
                         },
                     )
                 }
+                if (Permissions.supportsAllFilesAccess()) {
+                    val allFiles = Permissions.hasAllFilesAccess()
+                    PermissionRow(
+                        label = stringResource(R.string.perm_all_files),
+                        granted = allFiles,
+                        blocked = false,
+                        onGrant = {
+                            if (!allFiles) {
+                                runCatching {
+                                    context.startActivity(
+                                        Permissions.allFilesAccessIntent(context.packageName),
+                                    )
+                                }
+                            }
+                        },
+                    )
+                }
                 InfoRow(
                     title = stringResource(R.string.settings_permissions_note),
                     value = "",

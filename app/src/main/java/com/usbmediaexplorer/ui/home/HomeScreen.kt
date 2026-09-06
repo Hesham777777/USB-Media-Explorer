@@ -134,7 +134,7 @@ fun HomeScreen(snackbarHostState: SnackbarHostState) {
     ) {
         // Re-read the real state instead of trusting the result map: on Android 14 the user may
         // choose partial access, and the map alone does not tell media access from audio-only.
-        val granted = Permissions.hasMediaAccess(context)
+        val granted = Permissions.hasStorageAccess(context)
         val activity = context as? Activity
         viewModel.onMediaPermissionResult(
             granted = granted,
@@ -143,7 +143,7 @@ fun HomeScreen(snackbarHostState: SnackbarHostState) {
     }
 
     val syncPermissionState = {
-        val granted = Permissions.hasMediaAccess(context)
+        val granted = Permissions.hasStorageAccess(context)
         // Coming back from the system settings: a changed grant clears the blocked flag and is
         // the only resume case that deserves a full volume rescan.
         if (viewModel.syncMediaPermission(granted)) viewModel.refresh()

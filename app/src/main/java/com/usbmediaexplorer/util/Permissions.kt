@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.provider.Settings
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -14,9 +15,11 @@ import androidx.core.content.ContextCompat
 /**
  * Runtime-permission helpers.
  *
- * The app never asks for MANAGE_EXTERNAL_STORAGE. Removable volumes (USB/OTG, SD) are unlocked
- * with one SAF tree grant each and need no runtime permission at all; only the internal storage
- * does, which is why the home screen shows a permission dialog there and a SAF picker elsewhere.
+ * Two routes unlock storage: the ordinary runtime permission (media on 13+, storage on older
+ * versions — on legacy Android this covers removable mounts too), and the special all-files
+ * access on Android 11+ ([hasAllFilesAccess]), which is the only way raw paths keep working for
+ * non-media files there. Where neither route applies, a single SAF tree grant per removable
+ * volume remains the fallback.
  */
 object Permissions {
 
@@ -43,9 +46,38 @@ object Permissions {
      */
     fun runtimePermissions(context: Context): Array<String> {
         val list = mediaPermissions().toMutableList()
+        // Same dialog, but explicit: copy/move/delete onto shared storage needs the write half
+        // on API <= 29, and relying on group-grant behaviour alone is needlessly fragile.
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q) {
+            list += Manifest.permission.WRITE_EXTERNAL_STORAGE
+        }
         if (needsNotificationPermission(context)) list += Manifest.permission.POST_NOTIFICATIONS
         return list.toTypedArray()
     }
+
+    /** Android 11+ only: the special "All files access" app-op exists there and nowhere else. */
+    fun supportsAllFilesAccess(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+
+    /**
+     * True when the user toggled "Allow access to manage all files" for this app. The only route
+     * that makes raw paths work for every file (documents, archives, non-media) on Android 11+,
+     * internal and removable alike.
+     */
+    fun hasAllFilesAccess(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()
+
+    /**
+     * Combined gate: "can the app read the drives" — via all-files access (11+) or via the
+     * ordinary media/storage permission. Callers should not care which route granted it.
+     */
+    fun hasStorageAccess(context: Context): Boolean =
+        hasAllFilesAccess() || hasMediaAccess(context)
+
+    /** The system screen where all-files access is toggled. Callers guard with [supportsAllFilesAccess]. */
+    fun allFilesAccessIntent(packageName: String): Intent = Intent(
+        Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+        Uri.parse("package:$packageName"),
+    )
 
     private fun granted(context: Context, permission: String): Boolean =
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
