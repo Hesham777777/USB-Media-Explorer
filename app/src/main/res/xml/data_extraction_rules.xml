@@ -4,6 +4,25 @@
         <exclude
             domain="file"
             path="thumbs/" />
+        <!-- The user's watch history and playback positions never go to the cloud -->
+        <exclude
+            domain="file"
+            path="recent.json" />
+        <exclude
+            domain="file"
+            path="favorites.json" />
+        <exclude
+            domain="file"
+            path="playback.json" />
+        <exclude
+            domain="file"
+            path="metadata.json" />
+        <exclude
+            domain="file"
+            path="folder_prefs.json" />
+        <exclude
+            domain="file"
+            path="opsjournal.json" />
     </cloud-backup>
     <device-transfer>
         <include

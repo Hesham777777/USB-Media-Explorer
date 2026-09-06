@@ -2,6 +2,7 @@ package com.usbmediaexplorer.data.ops
 
 import android.content.Context
 import com.usbmediaexplorer.data.doc.DocNode
+import com.usbmediaexplorer.data.doc.DocRelation
 import com.usbmediaexplorer.data.doc.DocRepository
 import com.usbmediaexplorer.data.metadata.MetadataRepository
 import com.usbmediaexplorer.data.thumb.ThumbnailRepository
@@ -32,21 +33,27 @@ class FileOpsEngine(
     private val metadataRepository: MetadataRepository,
 ) {
 
-    private val listingCache = HashMap<String, MutableSet<String>>()
-
     // ------------------------------------------------------------------
     // Copy / move
     // ------------------------------------------------------------------
 
     suspend fun copy(items: List<DocNode>, destination: DocNode, ctx: OpContext): OpResult =
         withContext(Dispatchers.IO) {
-            listingCache.clear()
+            // Per-job cache: concurrent operations must not share (or clear) one mutable map
+            // (audit item 4).
+            val cache = HashMap<String, MutableSet<String>>()
             var done = 0
             var bytes = 0L
             var error: String? = null
             items.forEachIndexed { index, item ->
                 ctx.reportItem(item.name, index)
-                val result = copyNode(item, destination, ctx)
+                if (DocRelation.isSameOrDescendant(destination.uri.toString(), item.uri.toString())) {
+                    // Copying a folder into itself or its own subtree recurses until the drive
+                    // is full (audit item 3): refuse instead.
+                    if (error == null) error = item.name
+                    return@forEachIndexed
+                }
+                val result = copyNode(item, destination, ctx, cache)
                 if (result.first) {
                     done++
                     bytes += result.second
@@ -59,7 +66,7 @@ class FileOpsEngine(
 
     suspend fun move(items: List<DocNode>, destination: DocNode, ctx: OpContext): OpResult =
         withContext(Dispatchers.IO) {
-            listingCache.clear()
+            val cache = HashMap<String, MutableSet<String>>()
             var done = 0
             var bytes = 0L
             var error: String? = null
@@ -67,17 +74,25 @@ class FileOpsEngine(
                 ctx.reportItem(item.name, index)
                 coroutineContext.ensureActive()
                 ctx.awaitResume()
+                if (DocRelation.isSameOrDescendant(destination.uri.toString(), item.uri.toString())) {
+                    if (error == null) error = item.name
+                    return@forEachIndexed
+                }
                 val fastMove = runCatching { docRepository.moveTo(item, destination) }.getOrNull()
                 if (fastMove != null) {
                     done++
                     invalidateFor(item)
                 } else {
-                    val result = copyNode(item, destination, ctx)
+                    // Cross-volume: a staged, verified copy first — the source is deleted only
+                    // after the destination is complete and committed (audit item 2). A full
+                    // destination or an unplugged drive now leaves the source untouched.
+                    val result = copyNode(item, destination, ctx, cache)
                     if (result.first) {
                         val deleted = deleteSingle(item)
                         if (deleted) {
                             done++
                             bytes += result.second
+                            invalidateFor(item)
                         } else if (error == null) {
                             error = item.name
                         }
@@ -89,39 +104,67 @@ class FileOpsEngine(
             OpResult(error == null, done, bytes, error)
         }
 
-    /** Returns (success, bytesWritten). */
+    /**
+     * Staged copy: everything is written under a hidden `.<token>-name` temporary name,
+     * verified, and only then renamed to its final collision-free name. A failure or a
+     * cancellation leaves only staging files behind, which cleanup recognizes by the token;
+     * the final namespace never shows a half-written file, and a move may delete its source
+     * only after this returned success.
+     *
+     * Returns (success, bytesWritten).
+     */
     private suspend fun copyNode(
         source: DocNode,
         destination: DocNode,
         ctx: OpContext,
+        cache: HashMap<String, MutableSet<String>>,
     ): Pair<Boolean, Long> {
         coroutineContext.ensureActive()
         ctx.awaitResume()
+        val token = ctx.stagingToken.ifEmpty { OpsSafety.newToken() }
+        val finalName = uniqueName(destination, source.name, cache)
+        // Staging names are capped so a 250-char source name cannot exceed the 255-char limit
+        // most file systems enforce; the final rename restores the full name.
+        val stagedName = OpsSafety.stagingName(token, finalName.take(200))
         return if (source.isDirectory) {
-            val created = docRepository.createDirectory(destination, uniqueName(destination, source.name))
+            val created = docRepository.createDirectory(destination, stagedName)
                 ?: return false to 0L
             var total = 0L
             var ok = true
             docRepository.children(source).forEach { child ->
-                val childResult = copyNode(child, created, ctx)
+                val childResult = copyNode(child, created, ctx, cache)
                 ok = ok && childResult.first
                 total += childResult.second
             }
-            ok to total
-        } else {
-            val target = docRepository.createFile(
-                destination,
-                uniqueName(destination, source.name),
-                source.mimeType,
-            ) ?: return false to 0L
-            val written = streamCopy(source, target, ctx)
-            if (written < 0) {
-                runCatching { docRepository.delete(target) }
-                false to 0L
-            } else {
-                preserveTimestamp(source, target)
-                true to written
+            if (!ok) {
+                runCatching { docRepository.deleteRecursive(created) }
+                return false to total
             }
+            val committed = docRepository.rename(created, finalName)
+            if (committed == null) {
+                runCatching { docRepository.deleteRecursive(created) }
+                false to total
+            } else {
+                true to total
+            }
+        } else {
+            val staged = docRepository.createFile(destination, stagedName, source.mimeType)
+                ?: return false to 0L
+            val written = streamCopy(source, staged, ctx)
+            // Verification: a truncated stream (full destination, unplugged drive) must never be
+            // committed — compare against the source size whenever the source reports one.
+            val verified = written >= 0 && (source.size <= 0 || written == source.size)
+            if (!verified) {
+                runCatching { docRepository.delete(staged) }
+                return false to 0L
+            }
+            val committed = docRepository.rename(staged, finalName)
+            if (committed == null) {
+                runCatching { docRepository.delete(staged) }
+                return false to written
+            }
+            preserveTimestamp(source, committed)
+            true to written
         }
     }
 
@@ -201,12 +244,17 @@ class FileOpsEngine(
         archiveName: String,
         ctx: OpContext,
     ): OpResult = withContext(Dispatchers.IO) {
-        listingCache.clear()
+        if (items.any { DocRelation.isSameOrDescendant(destination.uri.toString(), it.uri.toString()) }) {
+            // Zipping a folder into itself writes the archive inside the tree being read.
+            return@withContext OpResult(false, 0, 0, archiveName)
+        }
+        val cache = HashMap<String, MutableSet<String>>()
         val name = if (archiveName.endsWith(".zip", true)) archiveName else "$archiveName.zip"
-        val archive = docRepository.createFile(destination, uniqueName(destination, name), "application/zip")
+        val archive = docRepository.createFile(destination, uniqueName(destination, name, cache), "application/zip")
             ?: return@withContext OpResult(false, 0, 0, archiveName)
         var bytes = 0L
         var count = 0
+        var failed = false
         val output = docRepository.openOutput(archive.uri)
             ?: return@withContext OpResult(false, 0, 0, archiveName)
         try {
@@ -214,10 +262,20 @@ class FileOpsEngine(
                 items.forEachIndexed { index, item ->
                     ctx.reportItem(item.name, index)
                     val written = addZipEntry(item, "", zip, ctx)
-                    bytes += written
-                    count++
+                    if (written < 0) {
+                        failed = true
+                    } else {
+                        bytes += written
+                        count++
+                    }
                 }
                 zip.finish()
+            }
+            // An unreadable source fails the operation instead of quietly leaving a short or
+            // empty archive behind (audit item 5).
+            if (failed) {
+                runCatching { docRepository.delete(archive) }
+                return@withContext OpResult(false, count, bytes, archiveName)
             }
             OpResult(true, count, bytes, null)
         } catch (t: Throwable) {
@@ -241,7 +299,8 @@ class FileOpsEngine(
             zip.closeEntry()
             var total = 0L
             docRepository.children(node).forEach { child ->
-                total += addZipEntry(child, "$entryName/", zip, ctx)
+                val written = addZipEntry(child, "$entryName/", zip, ctx)
+                if (written < 0) total = -1L else if (total >= 0) total += written
             }
             return total
         }
@@ -249,18 +308,30 @@ class FileOpsEngine(
             if (node.lastModified > 0) time = node.lastModified
         }
         zip.putNextEntry(entry)
+        val input = docRepository.openInput(node.uri)
+        if (input == null) {
+            // Unreadable source: report failure upward instead of storing an empty entry.
+            zip.closeEntry()
+            return -1L
+        }
         var written = 0L
-        docRepository.openInput(node.uri)?.use { input ->
-            val buffer = ByteArray(BUFFER_SIZE)
-            while (true) {
-                coroutineContext.ensureActive()
-                ctx.awaitResume()
-                val read = input.read(buffer)
-                if (read <= 0) break
-                zip.write(buffer, 0, read)
-                written += read
-                ctx.reportBytes(read.toLong())
+        try {
+            input.use { stream ->
+                val buffer = ByteArray(BUFFER_SIZE)
+                while (true) {
+                    coroutineContext.ensureActive()
+                    ctx.awaitResume()
+                    val read = stream.read(buffer)
+                    if (read <= 0) break
+                    zip.write(buffer, 0, read)
+                    written += read
+                    ctx.reportBytes(read.toLong())
+                }
             }
+        } catch (t: Throwable) {
+            zip.closeEntry()
+            if (t is kotlinx.coroutines.CancellationException) throw t
+            return -1L
         }
         zip.closeEntry()
         return written
@@ -270,31 +341,56 @@ class FileOpsEngine(
         withContext(Dispatchers.IO) {
             val input = docRepository.openInput(archive.uri)
                 ?: return@withContext OpResult(false, 0, 0, archive.name)
+            val token = ctx.stagingToken.ifEmpty { OpsSafety.newToken() }
+            val cache = HashMap<String, MutableSet<String>>()
+            // Everything lands in a hidden staging folder first: on failure or cancellation the
+            // whole extraction is deleted in one go, and the destination never shows a partial
+            // tree (audit item 5).
+            val staging = docRepository.createDirectory(
+                destination,
+                OpsSafety.stagingName(token, "unzip"),
+            ) ?: run {
+                runCatching { input.close() }
+                return@withContext OpResult(false, 0, 0, archive.name)
+            }
+            val budget = OpsSafety.UnzipLimits.budgetBytes(docRepository.freeBytes(destination))
             val dirCache = HashMap<String, DocNode>()
             var count = 0
             var bytes = 0L
             try {
+                if (budget <= 0) throw IllegalStateException("insufficient free space")
                 ZipInputStream(input.buffered(BUFFER_SIZE)).use { zip ->
                     while (true) {
                         coroutineContext.ensureActive()
                         ctx.awaitResume()
                         val entry = zip.nextEntry ?: break
+                        if (count >= OpsSafety.UnzipLimits.MAX_ENTRIES) {
+                            throw IllegalStateException("archive has too many entries")
+                        }
                         val relative = entry.name.replace('\\', '/').trimStart('/')
+                        val segments = relative.split('/').filter { it.isNotEmpty() }
                         // Zip-slip guard: never let an entry escape the destination folder.
                         if (relative.split('/').any { it == ".." }) {
                             zip.closeEntry()
                             continue
                         }
+                        // Depth and name-length quotas: hostile archives use pathologically
+                        // deep or long paths to exhaust the file system.
+                        if (segments.size > OpsSafety.UnzipLimits.MAX_DEPTH ||
+                            segments.any { it.length > OpsSafety.UnzipLimits.MAX_SEGMENT_LENGTH }
+                        ) {
+                            throw IllegalStateException("entry path too deep or too long")
+                        }
                         if (entry.isDirectory) {
-                            ensureDirectory(destination, relative.trimEnd('/'), dirCache)
+                            ensureDirectory(staging, relative.trimEnd('/'), dirCache)
                             zip.closeEntry()
                             continue
                         }
                         val parentPath = relative.substringBeforeLast('/', "")
                         val parent = if (parentPath.isEmpty()) {
-                            destination
+                            staging
                         } else {
-                            ensureDirectory(destination, parentPath, dirCache) ?: destination
+                            ensureDirectory(staging, parentPath, dirCache) ?: staging
                         }
                         val fileName = relative.substringAfterLast('/')
                         if (fileName.isEmpty()) {
@@ -315,8 +411,15 @@ class FileOpsEngine(
                         output.use { o ->
                             val buffer = ByteArray(BUFFER_SIZE)
                             while (true) {
+                                coroutineContext.ensureActive()
                                 val read = zip.read(buffer)
                                 if (read <= 0) break
+                                // The budget is enforced on bytes actually written: declared
+                                // entry sizes can lie, so a ZIP bomb dies here instead of at
+                                // zero free space.
+                                if (!OpsSafety.UnzipLimits.fits(budget, bytes, read.toLong())) {
+                                    throw IllegalStateException("extraction exceeds free space")
+                                }
                                 o.write(buffer, 0, read)
                                 bytes += read
                                 ctx.reportBytes(read.toLong())
@@ -326,8 +429,32 @@ class FileOpsEngine(
                         zip.closeEntry()
                     }
                 }
+                // Commit: move the staged children into the destination under collision-free
+                // names, then drop the staging folder.
+                docRepository.children(staging).forEach { child ->
+                    coroutineContext.ensureActive()
+                    val finalName = uniqueName(destination, child.name, cache)
+                    val prepared = if (finalName != child.name) {
+                        docRepository.rename(child, finalName) ?: child
+                    } else {
+                        child
+                    }
+                    val moved = docRepository.moveTo(prepared, destination)
+                    if (moved == null) {
+                        val copied = copyNode(prepared, destination, ctx, cache)
+                        if (copied.first) {
+                            if (prepared.isDirectory) {
+                                docRepository.deleteRecursive(prepared)
+                            } else {
+                                docRepository.delete(prepared)
+                            }
+                        }
+                    }
+                }
+                runCatching { docRepository.deleteRecursive(staging) }
                 OpResult(true, count, bytes, null)
             } catch (t: Throwable) {
+                runCatching { docRepository.deleteRecursive(staging) }
                 if (t is kotlinx.coroutines.CancellationException) throw t
                 OpResult(false, count, bytes, t.message ?: archive.name)
             }
@@ -422,8 +549,12 @@ class FileOpsEngine(
         count
     }
 
-    private suspend fun uniqueName(destination: DocNode, desired: String): String {
-        val names = listingCache.getOrPut(destination.uri.toString()) {
+    private suspend fun uniqueName(
+        destination: DocNode,
+        desired: String,
+        cache: HashMap<String, MutableSet<String>>,
+    ): String {
+        val names = cache.getOrPut(destination.uri.toString()) {
             docRepository.children(destination).map { it.name }.toMutableSet()
         }
         if (desired !in names) {

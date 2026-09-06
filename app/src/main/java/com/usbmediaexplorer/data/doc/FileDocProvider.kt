@@ -197,9 +197,12 @@ class FileDocProvider(
             val source = File(node.uri.path ?: return@withContext null)
             val target = File(targetParent.uri.path ?: return@withContext null, source.name)
             if (target.exists()) return@withContext null
-            // A plain rename is used when possible: same volume => instant move.
-            val moved = if (source.renameTo(target)) true else copyTree(source, target)
-            if (moved) toNode(target) else null
+            // Rename only: instant and atomic on the same volume. A cross-volume rename fails,
+            // and the operation engine then performs a staged, verified copy and deletes the
+            // source only after the destination committed. The old copyTree fallback deleted
+            // each source file mid-copy, which lost data when the destination filled up or the
+            // drive was unplugged halfway (audit item 2).
+            if (source.renameTo(target)) toNode(target) else null
         }
 
     override fun freeBytes(node: DocNode): Long? = runCatching {
@@ -213,20 +216,6 @@ class FileDocProvider(
     override fun fileSystemLabel(node: DocNode): String? = null
 
     // ------------------------------------------------------------------
-
-    private fun copyTree(source: File, target: File): Boolean = runCatching {
-        if (source.isDirectory) {
-            target.mkdirs()
-            source.listFiles()?.forEach { child ->
-                if (!copyTree(child, File(target, child.name))) return@runCatching false
-            }
-            source.deleteRecursively()
-        } else {
-            source.inputStream().use { input -> target.outputStream().use { input.copyTo(it) } }
-            source.delete()
-        }
-        true
-    }.getOrDefault(false)
 
     fun toNode(file: File): DocNode {
         val ref = volumeResolver.resolve(Uri.fromFile(file))

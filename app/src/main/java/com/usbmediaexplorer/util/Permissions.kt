@@ -98,7 +98,9 @@ object Permissions {
                     )
 
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ->
-            granted(context, Manifest.permission.READ_MEDIA_VIDEO) ||
+            // AND, not OR: an images-only or video-only grant is partial access — treating it as
+            // full access hid the permission UI while half the library stayed unreadable.
+            granted(context, Manifest.permission.READ_MEDIA_VIDEO) &&
                 granted(context, Manifest.permission.READ_MEDIA_IMAGES)
 
         else -> granted(context, Manifest.permission.READ_EXTERNAL_STORAGE)

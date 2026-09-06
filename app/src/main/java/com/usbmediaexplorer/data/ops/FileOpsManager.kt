@@ -2,6 +2,7 @@ package com.usbmediaexplorer.data.ops
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import com.usbmediaexplorer.data.doc.DocNode
 import com.usbmediaexplorer.data.doc.DocRepository
 import com.usbmediaexplorer.util.Formatters
@@ -10,6 +11,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +21,13 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
 /** Copy/cut buffer used by "paste" (spec §14). */
@@ -48,6 +56,7 @@ class FileOpsManager(
     private val context: Context,
     private val engine: FileOpsEngine,
     private val docRepository: DocRepository,
+    private val journal: OpsJournal,
     private val scope: CoroutineScope,
 ) {
 
@@ -64,6 +73,35 @@ class FileOpsManager(
     }
 
     private val handles = LinkedHashMap<String, Handle>()
+
+    /** Bounded concurrency: at most [MAX_CONCURRENT_OPS] jobs execute at once (audit item 4). */
+    private val opGate = Semaphore(MAX_CONCURRENT_OPS)
+
+    /** One writer per volume: operations targeting the same volume are serialized. */
+    private val volumeLocks = ConcurrentHashMap<String, Mutex>()
+
+    private fun volumeLockFor(key: String): Mutex = volumeLocks.computeIfAbsent(key) { Mutex() }
+
+    init {
+        // Crash recovery: a STAGING journal entry means the process died mid-operation. Sweep
+        // the tokenized staging leftovers out of the destination and mark the entry failed;
+        // anything already committed under its final name is untouched.
+        scope.launch(Dispatchers.IO) {
+            runCatching {
+                journal.entries()
+                    .filter { it.state == OpsJournal.State.STAGING }
+                    .forEach { entry ->
+                        runCatching {
+                            docRepository.node(Uri.parse(entry.destUri))?.let { dest ->
+                                cleanupStaging(dest, entry.token)
+                            }
+                        }
+                        journal.finish(entry.id, OpsJournal.State.FAILED)
+                    }
+                journal.pruneFinishedBefore(System.currentTimeMillis() - PRUNE_AFTER_MS)
+            }
+        }
+    }
 
     private val _jobs = MutableStateFlow<List<JobProgress>>(emptyList())
     val jobs: StateFlow<List<JobProgress>> = _jobs.asStateFlow()
@@ -194,17 +232,29 @@ class FileOpsManager(
             publishJobs()
         }
 
+        val token = id.replace("-", "").take(8)
+        val destUri = destination?.uri?.toString().orEmpty()
+        val journalled = destination != null && type != OpType.DELETE && type != OpType.BULK_RENAME
+        val volumeKey = (destination ?: items.firstOrNull())?.volumeId?.takeIf { it.isNotEmpty() }
+            ?: "global"
         handle.job = scope.launch(Dispatchers.IO) {
+            opGate.withPermit {
+                volumeLockFor(volumeKey).withLock {
             val ctx = JobContext(handle)
             var result: OpResult? = null
             try {
+                // The foreground service starts before the size estimate: on huge trees the
+                // estimate itself can take minutes, and the process must be protected during it.
+                startServiceIfNeeded()
+                if (journalled) {
+                    journal.begin(id, type.name, token, destUri)
+                }
                 if (type != OpType.DELETE) {
                     val total = engine.estimateBytes(items)
                     update(handle) { it.copy(totalBytes = total, state = JobState.RUNNING) }
                 } else {
                     update(handle) { it.copy(state = JobState.RUNNING) }
                 }
-                startServiceIfNeeded()
                 result = block(ctx)
             } catch (cancel: CancellationException) {
                 handle.canceled = true
@@ -227,6 +277,19 @@ class FileOpsManager(
                     doneItems = result?.processedItems ?: it.doneItems,
                 )
             }
+            if (journalled && destination != null) {
+                withContext(NonCancellable) {
+                    if (finalState == JobState.DONE) {
+                        journal.finish(id, OpsJournal.State.COMMITTED)
+                    } else {
+                        // A canceled coroutine cannot make suspend calls, so whatever the engine
+                        // could not clean up after itself is swept here, before the entry is
+                        // closed as FAILED.
+                        cleanupStaging(destination, token)
+                        journal.finish(id, OpsJournal.State.FAILED)
+                    }
+                }
+            }
             val destinationUri = destination?.uri?.toString()
             if (finalState == JobState.DONE) {
                 _events.tryEmit(OpsEvent.Completed(type, destinationUri, true))
@@ -236,11 +299,31 @@ class FileOpsManager(
                 _events.tryEmit(OpsEvent.Completed(type, destinationUri, false))
             }
             maybeStopService()
+                }
+            }
         }
         return id
     }
 
+    /** Removes staging leftovers of one operation (matched by its token) inside [destination]. */
+    private suspend fun cleanupStaging(destination: DocNode, token: String) {
+        val children = runCatching { docRepository.children(destination) }.getOrNull() ?: return
+        children.forEach { child ->
+            if (OpsSafety.isStagingName(child.name, token)) {
+                runCatching {
+                    if (child.isDirectory) {
+                        docRepository.deleteRecursive(child)
+                    } else {
+                        docRepository.delete(child)
+                    }
+                }
+            }
+        }
+    }
+
     private inner class JobContext(private val handle: Handle) : OpContext {
+
+        override val stagingToken: String = handle.id.replace("-", "").take(8)
 
         override suspend fun reportBytes(delta: Long) {
             val total = handle.transferred.addAndGet(delta)
@@ -309,5 +392,7 @@ class FileOpsManager(
 
     private companion object {
         const val PUBLISH_INTERVAL_MS = 120L
+        const val MAX_CONCURRENT_OPS = 2
+        const val PRUNE_AFTER_MS = 7L * 24 * 60 * 60 * 1000
     }
 }

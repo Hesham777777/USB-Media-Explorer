@@ -41,6 +41,12 @@ interface OpContext {
     suspend fun reportItem(name: String, index: Int)
     /** Blocks while the user has paused the job; throws on cancellation. */
     suspend fun awaitResume()
+
+    /**
+     * Token embedded in every staging name this job creates (see [OpsSafety]), so leftovers are
+     * recognizable after a failure or a process death. Empty for callers outside the manager.
+     */
+    val stagingToken: String get() = ""
 }
 
 data class OpResult(

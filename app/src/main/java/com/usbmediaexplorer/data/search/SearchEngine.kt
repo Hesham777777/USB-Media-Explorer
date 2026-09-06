@@ -76,6 +76,8 @@ class SearchEngine(
     private data class Snapshot(val rootKey: String, val at: Long, val nodes: List<DocNode>)
 
     @Volatile
+    // Written by the IO-dispatched search flow, cleared by invalidate() from the app scope.
+    @Volatile
     private var snapshot: Snapshot? = null
 
     fun search(roots: List<DocNode>, query: SearchQuery): Flow<SearchResult> = flow {
@@ -150,11 +152,19 @@ class SearchEngine(
             // costs more memory than the re-walk it saves. The walk still yields matches; the
             // debounce is what protects the drive from per-character re-scans.
             snapshot = null
-        } else if (walked.isNotEmpty()) {
+        } else if (walked.isNotEmpty() && !truncated) {
+            // A truncated walk stopped early at the result cap: its node list is a partial view
+            // of the tree, and caching it would answer every later query from an incomplete
+            // snapshot (audit item 7). Only complete walks are cached.
             snapshot = Snapshot(root.key, System.currentTimeMillis(), walked)
         }
         emit(SearchResult(matches.toList(), scanned, isRunning = false, truncated = truncated))
     }.flowOn(Dispatchers.IO)
+
+    /** Drops the cached snapshot so the next search re-walks (called after any file operation). */
+    fun invalidate() {
+        snapshot = null
+    }
 
     private fun matches(node: DocNode, query: SearchQuery, settings: AppSettings): Boolean {
         val kind = node.kind

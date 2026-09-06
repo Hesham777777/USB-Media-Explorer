@@ -65,15 +65,22 @@ open class JsonStore(
     }
 
     private fun writeToDisk(json: JSONObject) {
-        runCatching {
+        try {
             file.parentFile?.mkdirs()
             val tmp = File(file.parentFile, file.name + ".tmp")
             tmp.writeText(json.toString(), Charsets.UTF_8)
-            if (file.exists()) file.delete()
+            // AtomicFile ordering: rename(2) replaces the target in one step — deleting the
+            // original first opened a crash window with no file at all (audit item: JsonStore).
             if (!tmp.renameTo(file)) {
-                file.writeText(tmp.readText(Charsets.UTF_8), Charsets.UTF_8)
-                tmp.delete()
+                // Some file systems refuse rename-over-existing; fall back, then to a byte copy.
+                if (!(file.delete() && tmp.renameTo(file))) {
+                    file.writeText(tmp.readText(Charsets.UTF_8), Charsets.UTF_8)
+                    tmp.delete()
+                }
             }
+        } catch (t: Throwable) {
+            // Persistence failures must never be swallowed silently.
+            android.util.Log.e("JsonStore", "Failed to persist " + file.name, t)
         }
     }
 

@@ -8,6 +8,8 @@ import com.usbmediaexplorer.data.metadata.MetadataRepository
 import com.usbmediaexplorer.data.metadata.MetadataStore
 import com.usbmediaexplorer.data.ops.FileOpsEngine
 import com.usbmediaexplorer.data.ops.FileOpsManager
+import com.usbmediaexplorer.data.ops.OpsEvent
+import com.usbmediaexplorer.data.ops.OpsJournal
 import com.usbmediaexplorer.data.ops.OpsNotifications
 import com.usbmediaexplorer.data.search.SearchEngine
 import com.usbmediaexplorer.data.settings.SettingsRepository
@@ -104,8 +106,9 @@ class AppContainer(private val context: Context) {
     val fileOpsEngine: FileOpsEngine by lazy {
         FileOpsEngine(context, docRepository, thumbnailRepository, metadataRepository)
     }
+    val opsJournal: OpsJournal by lazy { OpsJournal(context) }
     val fileOpsManager: FileOpsManager by lazy {
-        FileOpsManager(context, fileOpsEngine, docRepository, appScope)
+        FileOpsManager(context, fileOpsEngine, docRepository, opsJournal, appScope)
     }
     val searchEngine: SearchEngine by lazy { SearchEngine(docRepository, settingsRepository) }
 
@@ -122,6 +125,15 @@ class AppContainer(private val context: Context) {
             settingsRepository.settings.collect { settings ->
                 // Keep the thumbnail cache within the user's configured budget.
                 thumbnailRepository.enforceLimit(settings.cacheLimitBytes)
+            }
+        }
+        // Any finished file operation may have added, removed or renamed files: the search
+        // snapshot must never keep answering from a stale tree (audit item 7).
+        appScope.launch {
+            fileOpsManager.events.collect { event ->
+                if (event is OpsEvent.Completed || event is OpsEvent.Failed) {
+                    searchEngine.invalidate()
+                }
             }
         }
     }

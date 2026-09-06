@@ -41,7 +41,7 @@
 
     <application
         android:name=".UsbMediaExplorerApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
@@ -68,13 +68,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Open a video from any other app / file manager -->
+            <!-- Open a video from any other app / file manager.
+                 content:// only: no BROWSABLE (the app must not be launchable from web links
+                 with an attacker-chosen URI) and no legacy file:// scheme. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="content" />
-                <data android:scheme="file" />
                 <data android:mimeType="video/*" />
             </intent-filter>
 
@@ -96,7 +96,7 @@
         <!-- Mount / unmount events are exempt from implicit broadcast restrictions -->
         <receiver
             android:name=".data.volume.VolumeEventReceiver"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_MOUNTED" />
                 <action android:name="android.intent.action.MEDIA_UNMOUNTED" />
