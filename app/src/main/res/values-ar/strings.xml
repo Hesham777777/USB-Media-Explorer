@@ -63,6 +63,9 @@
     <string name="hint_connect_usb">وصّل فلاشة USB أو محول OTG أو بطاقة SD وستظهر هنا تلقائيًا.</string>
     <string name="usb_attached_title">تم اكتشاف فلاشة USB</string>
     <string name="usb_attached_body">امنح صلاحية الوصول مرة واحدة لتصفح الوحدة وإنشاء معاينات حقيقية للفيديوهات.</string>
+    <string name="continue_watching">تابع المشاهدة</string>
+    <string name="continue_time_left">باقٍ %1$s</string>
+    <string name="msg_removed_from_continue">أُزيل من «تابع المشاهدة»</string>
     <string name="recent_videos">آخر ما تمت مشاهدته</string>
     <string name="recent_folders">آخر المجلدات المفتوحة</string>
 

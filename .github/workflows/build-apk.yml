@@ -152,13 +152,49 @@ jobs:
           echo "::error::Unit tests failed - see ci-test-log.md on this branch."
           exit 1
 
-      - name: Build release APK (signed with the stable key)
+      # نسخة release هي الآن التسليم الأساسي (موقّعة بالمفتاح الثابت ومصغّرة بـ R8)،
+      # لذا فشل بنائها يفشل التشغيل وينشر الأخطاء في المستودع مثل نسخة debug تمامًا.
+      - name: Build release APK (signed, R8)
+        id: release_build
         if: steps.build.outcome == 'success'
         continue-on-error: true
-        run: ./gradlew :app:assembleRelease --no-daemon --console=plain
+        run: |
+          set +e
+          ./gradlew :app:assembleRelease --no-daemon --console=plain --stacktrace 2>&1 | tee release.log
+          code=${PIPESTATUS[0]}
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit $code
+
+      - name: Publish release build errors (only on failure)
+        if: steps.release_build.outcome == 'failure'
+        run: |
+          {
+            echo "# أخطاء بناء نسخة release (توليد تلقائي من CI)"
+            echo
+            echo '```'
+            grep -E "^e: |^error:|FAILURE:|What went wrong|^> Task .* FAILED|Execution failed|Caused by:|AAPT|ERROR:|Missing class|R8:" release.log | head -250
+            echo '```'
+            echo
+            echo "## آخر 120 سطرًا"
+            echo
+            echo '```'
+            tail -n 120 release.log
+            echo '```'
+          } > ci-build-log.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ci-build-log.md
+          git commit -m "ci: publish release build errors [skip ci]"
+          git push
+
+      - name: Fail the run when the release build failed
+        if: steps.release_build.outcome == 'failure'
+        run: |
+          echo "::error::Release build failed - see ci-build-log.md on this branch for the compiler output."
+          exit 1
 
       - name: Upload release APK
-        if: steps.build.outcome == 'success'
+        if: steps.release_build.outcome == 'success'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -187,8 +223,9 @@ jobs:
           body: |
             ملف APK مبني تلقائيًا من آخر commit على هذا الفرع.
 
-            - `USB-Media-Explorer-debug.apk` — **جاهز للتثبيت مباشرة** (النسخة الأساسية).
-            - `app-release.apk` — نسخة مصغّرة بـ R8 (أصغر وأسرع) موقّعة بنفس المفتاح الثابت.
+            - `app-release.apk` — **النسخة الموصى بها**: موقّعة بالمفتاح الثابت ومصغّرة بـ R8
+              (≈3.7MB بدل ≈23MB) — إقلاع أسرع وذاكرة أقل، وهي الأنسب للأجهزة منخفضة المواصفات.
+            - `USB-Media-Explorer-debug.apk` — نسخة التطوير الكاملة، تُثبَّت مباشرة أيضًا.
 
             كلا الملفين موقّعان بمفتاح ثابت: أي إصدار جديد يُثبَّت **فوق** الإصدار السابق مباشرة
             ويحافظ على بيانات المستخدم (المفضلة، المجلدات الأخيرة، مواضع التشغيل، كاش المصغرات).

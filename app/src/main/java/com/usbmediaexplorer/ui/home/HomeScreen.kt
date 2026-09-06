@@ -36,6 +36,7 @@ import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.Usb
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
@@ -413,6 +414,30 @@ fun HomeScreen(snackbarHostState: SnackbarHostState) {
                 }
             }
 
+            // ---- continue watching: unfinished videos with their resume point ----
+            if (state.continueWatching.isNotEmpty()) {
+                item(key = "continue-watching-header") {
+                    SectionHeader(
+                        title = stringResource(R.string.continue_watching),
+                        count = state.continueWatching.size,
+                    )
+                }
+                item(key = "continue-watching-row") {
+                    ContinueWatchingRow(
+                        entries = state.continueWatching,
+                        onPlay = { entry -> navigator.playVideo(entry.node.uri, null) },
+                        onForget = { entry ->
+                            viewModel.forgetContinue(entry)
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    context.getString(R.string.msg_removed_from_continue),
+                                )
+                            }
+                        },
+                    )
+                }
+            }
+
             // ---- recently watched: real frames, never a poster ---------------
             if (state.recentVideos.isNotEmpty()) {
                 item(key = "recent-videos-header") {
@@ -775,6 +800,89 @@ private fun RecentFoldersRow(
                             text = Formatters.dateTime(entry.lastOpenedAt),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Unfinished videos with their saved resume point: same card language as [RecentVideosRow],
+ * plus a progress strip on the frame and the remaining time under the title.
+ */
+@Composable
+private fun ContinueWatchingRow(
+    entries: List<ContinueEntry>,
+    onPlay: (ContinueEntry) -> Unit,
+    onForget: (ContinueEntry) -> Unit,
+) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm),
+        contentPadding = PaddingValues(vertical = AppSpacing.xs),
+    ) {
+        items(entries, key = { it.position.key }) { entry ->
+            PressableSurface(
+                onClick = { onPlay(entry) },
+                onLongClick = { onForget(entry) },
+                modifier = Modifier.width(168.dp),
+                shape = RoundedCornerShape(AppRadius.md),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+            ) {
+                Column {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(16f / 9f)
+                            .clip(
+                                RoundedCornerShape(
+                                    topStart = AppRadius.md,
+                                    topEnd = AppRadius.md,
+                                ),
+                            ),
+                    ) {
+                        MediaThumbnail(node = entry.node, modifier = Modifier.fillMaxSize())
+                        Box(
+                            Modifier
+                                .align(Alignment.Center)
+                                .size(30.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                Icons.Outlined.PlayArrow,
+                                contentDescription = stringResource(R.string.action_open),
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                        LinearProgressIndicator(
+                            progress = { entry.position.progress },
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .fillMaxWidth()
+                                .height(3.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                        )
+                    }
+                    Column(Modifier.padding(horizontal = AppSpacing.md, vertical = AppSpacing.sm)) {
+                        Text(
+                            text = entry.node.nameWithoutExtension.bidiName(),
+                            style = MaterialTheme.typography.titleSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = stringResource(
+                                R.string.continue_time_left,
+                                Formatters.duration(entry.position.remainingMs),
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                         )
                     }

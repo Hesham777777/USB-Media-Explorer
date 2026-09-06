@@ -63,6 +63,9 @@
     <string name="hint_connect_usb">Connect a USB drive, OTG adapter or SD card and it will appear here automatically.</string>
     <string name="usb_attached_title">USB drive detected</string>
     <string name="usb_attached_body">Grant access once to browse the drive and build real video thumbnails.</string>
+    <string name="continue_watching">Continue watching</string>
+    <string name="continue_time_left">%1$s left</string>
+    <string name="msg_removed_from_continue">Removed from Continue watching</string>
     <string name="recent_videos">Recently watched</string>
     <string name="recent_folders">Recently opened folders</string>
 

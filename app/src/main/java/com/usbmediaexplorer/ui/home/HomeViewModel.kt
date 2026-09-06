@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.usbmediaexplorer.R
 import com.usbmediaexplorer.data.doc.DocNode
+import com.usbmediaexplorer.data.store.PlaybackPosition
 import com.usbmediaexplorer.data.store.RecentEntry
 import com.usbmediaexplorer.data.volume.VolumeInfo
 import com.usbmediaexplorer.data.volume.VolumeKind
@@ -25,9 +26,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/** One "continue watching" card: the file plus its saved resume point. */
+data class ContinueEntry(val node: DocNode, val position: PlaybackPosition)
+
 data class HomeUiState(
     val volumes: List<VolumeInfo> = emptyList(),
     val refreshing: Boolean = false,
+    val continueWatching: List<ContinueEntry> = emptyList(),
     val recentVideos: List<DocNode> = emptyList(),
     val recentFolders: List<RecentEntry> = emptyList(),
     val favoriteCount: Int = 0,
@@ -44,6 +49,9 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         /** "Recent folders" means the last two hours, not the last hundred entries. */
         const val RECENT_WINDOW_MS = 2 * 60 * 60 * 1000L
         const val MAX_RECENT_FOLDERS = 8
+
+        /** Cap for the resume row; older bookmarks stay in the store, just off the screen. */
+        const val MAX_CONTINUE_WATCHING = 12
     }
 
     private val _state = MutableStateFlow(HomeUiState())
@@ -81,6 +89,17 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             container.recentStore.recentVideos.collect { entries ->
                 val nodes = resolveRecent(entries)
                 _state.value = _state.value.copy(recentVideos = nodes)
+            }
+        }
+        viewModelScope.launch {
+            // The positions map re-emits every few seconds while a video plays; joining the
+            // top bookmarks against the node cache below is a cheap in-memory pass.
+            container.playbackPositionStore.positions.collect { positions ->
+                val unfinished = positions.values
+                    .filter { !it.isFinished && it.positionMs > 0 }
+                    .sortedByDescending { it.updatedAt }
+                    .take(MAX_CONTINUE_WATCHING)
+                _state.value = _state.value.copy(continueWatching = resolvePositions(unfinished))
             }
         }
         viewModelScope.launch {
@@ -201,6 +220,31 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     fun forgetRecentVideo(node: DocNode) {
         viewModelScope.launch { container.recentStore.removeVideo(node.stableKey) }
     }
+
+    /** Removes the resume point so the video leaves the "continue watching" row. */
+    fun forgetContinue(entry: ContinueEntry) {
+        continueNodes.remove(entry.position.key)
+        viewModelScope.launch { container.playbackPositionStore.clear(entry.position.key) }
+    }
+
+    /**
+     * Nodes for the resume row, cached by key: only brand-new bookmarks deserve a provider
+     * query. A file that cannot be resolved right now (its USB drive is unplugged) is skipped
+     * silently — the bookmark itself must survive until the drive returns.
+     */
+    private val continueNodes = HashMap<String, DocNode>()
+
+    private suspend fun resolvePositions(positions: List<PlaybackPosition>): List<ContinueEntry> =
+        withContext(Dispatchers.IO) {
+            if (continueNodes.size > 64) continueNodes.clear()
+            positions.mapNotNull { position ->
+                val node = continueNodes[position.key]
+                    ?: docRepository.node(Uri.parse(position.key))
+                        ?.takeIf { !it.isDirectory }
+                        ?.also { continueNodes[position.key] = it }
+                node?.let { ContinueEntry(it, position) }
+            }
+        }
 
     private suspend fun resolveRecent(entries: List<RecentEntry>): List<DocNode> =
         withContext(Dispatchers.IO) {
