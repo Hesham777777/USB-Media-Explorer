@@ -88,6 +88,9 @@ class FileOpsManager(
         // anything already committed under its final name is untouched.
         scope.launch(Dispatchers.IO) {
             runCatching {
+                // JsonStore loads asynchronously; make recovery read the persisted state,
+                // not the empty in-memory default, or a crash entry could be missed.
+                journal.reload()
                 journal.entries()
                     .filter { it.state == OpsJournal.State.STAGING }
                     .forEach { entry ->

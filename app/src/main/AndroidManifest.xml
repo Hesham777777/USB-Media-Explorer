@@ -87,6 +87,15 @@
                 android:resource="@xml/usb_device_filter" />
         </activity>
 
+        <!-- Post-crash report screen. Separate process so it survives the main process being
+             killed by the crash handler; never exported, never a launch target. -->
+        <activity
+            android:name=".CrashReportActivity"
+            android:exported="false"
+            android:label="Crash report"
+            android:process=":crash"
+            android:theme="@style/Theme.UsbMediaExplorer" />
+
         <!-- Foreground service that runs long copy / move / zip jobs -->
         <service
             android:name=".data.ops.FileOpsService"
