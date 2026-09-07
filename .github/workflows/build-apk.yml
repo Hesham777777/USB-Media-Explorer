@@ -258,6 +258,24 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      # ينشر خريطة R8 لهذا البناء بالضبط حتى يمكن فكّ تتبّعات الانهيار المبهمة الواردة من
+      # الأجهزة. تُودَع في الفرع نفسه لأن مضيفات الـartifacts غير قابلة للوصول من بيئات
+      # الشبكة المقيدة. خطوة تشخيصية مؤقتة.
+      - name: Publish R8 mapping (crash retrace)
+        if: steps.release_build.outcome == 'success'
+        run: |
+          MAP=app/build/outputs/mapping/release/mapping.txt
+          if [ -f "$MAP" ]; then
+            cp "$MAP" ci-mapping.txt
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -f ci-mapping.txt
+            git commit -m "ci: publish R8 mapping for ${GITHUB_SHA:0:7} [skip ci]"
+            git push
+          else
+            echo "::warning::mapping.txt not found - release minification may be off."
+          fi
+
       # الأصول القديمة (غير الموقّعة، ونسخ debug المنشورة سابقًا) تُحذف من الـRelease حتى
       # يبقى ملف واحد موقّع هو التسليم الرسمي.
       - name: Remove legacy release assets
