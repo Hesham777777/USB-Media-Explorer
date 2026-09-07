@@ -45,7 +45,7 @@ media3-common = { group = "androidx.media3", name = "media3-common", version.ref
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 coil-gif = { group = "io.coil-kt", name = "coil-gif", version.ref = "coil" }
 okio = { group = "com.squareup.okio", name = "okio", version = "3.9.0" }
-androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version = "1.3.7" }
+androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version = "1.4.2" }
 
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
