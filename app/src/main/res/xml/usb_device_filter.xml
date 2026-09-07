@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Accept every USB device and decide in code whether it exposes a mass-storage
+  interface (bInterfaceClass == 8). Filtering by device class here would miss
+  most flash drives, which report device class 0 (defined at interface level).
+-->
+<resources>
+    <usb-device />
+</resources>

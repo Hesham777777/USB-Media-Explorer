@@ -1,0 +1,470 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">مستكشف وسائط USB</string>
+
+    <!-- إجراءات عامة -->
+    <string name="action_open">فتح</string>
+    <string name="action_share">مشاركة</string>
+    <string name="action_copy">نسخ</string>
+    <string name="action_cut">قص</string>
+    <string name="action_paste">لصق</string>
+    <string name="action_move">نقل</string>
+    <string name="action_delete">حذف</string>
+    <string name="action_rename">إعادة تسمية</string>
+    <string name="action_rename_short">تسمية</string>
+    <string name="action_details">التفاصيل</string>
+    <string name="action_favorite">إضافة إلى المفضلة</string>
+    <string name="action_unfavorite">إزالة من المفضلة</string>
+    <string name="action_cancel">إلغاء</string>
+    <string name="action_ok">حسنًا</string>
+    <string name="action_apply">تطبيق</string>
+    <string name="action_close">إغلاق</string>
+    <string name="action_retry">إعادة المحاولة</string>
+    <string name="action_save">حفظ</string>
+    <string name="action_select_all">تحديد الكل</string>
+    <string name="action_invert_selection">عكس التحديد</string>
+    <string name="action_new_folder">مجلد جديد</string>
+    <string name="action_new_folder_short">مجلد</string>
+    <string name="action_new_file">ملف جديد</string>
+    <string name="action_zip">ضغط (ZIP)</string>
+    <string name="action_unzip">استخراج هنا</string>
+    <string name="action_bulk_rename">إعادة تسمية جماعية</string>
+    <string name="action_bulk_rename_short">تسمية الكل</string>
+    <string name="action_search">بحث</string>
+    <string name="action_sort">فرز</string>
+    <string name="action_view_mode">طريقة العرض</string>
+    <string name="action_settings">الإعدادات</string>
+    <string name="action_refresh">تحديث</string>
+    <string name="action_grant_access">منح الوصول</string>
+    <string name="action_more">خيارات إضافية</string>
+    <string name="action_more_short">المزيد</string>
+    <string name="action_back">رجوع</string>
+    <string name="action_resume">استئناف</string>
+    <string name="action_start_over">من البداية</string>
+    <string name="action_select_destination">اختيار الوجهة</string>
+
+    <!-- الشاشة الرئيسية / وحدات التخزين -->
+    <string name="home_title">وحدات التخزين</string>
+    <string name="home_subtitle">اختر وحدة تخزين لتصفحها</string>
+    <string name="section_volumes">الوحدات</string>
+    <string name="section_quick_access">وصول سريع</string>
+    <string name="section_favorites">المفضلة</string>
+    <string name="section_recent">الأخيرة</string>
+    <string name="volume_internal">التخزين الداخلي</string>
+    <string name="volume_sd_card">بطاقة SD</string>
+    <string name="volume_usb">فلاشة USB</string>
+    <string name="volume_unknown">وحدة تخزين خارجية</string>
+    <string name="volume_free_of">متوفر %1$s من %2$s</string>
+    <string name="volume_space_unknown">المساحة غير متوفرة</string>
+    <string name="volume_unmounted">غير موصولة</string>
+    <string name="volume_needs_permission">يتطلب صلاحية وصول</string>
+    <string name="volume_fs_label">نظام الملفات: %1$s</string>
+    <string name="empty_no_volumes">لا توجد وحدات تخزين</string>
+    <string name="hint_connect_usb">وصّل فلاشة USB أو محول OTG أو بطاقة SD وستظهر هنا تلقائيًا.</string>
+    <string name="usb_attached_title">تم اكتشاف فلاشة USB</string>
+    <string name="usb_attached_body">امنح صلاحية الوصول مرة واحدة لتصفح الوحدة وإنشاء معاينات حقيقية للفيديوهات.</string>
+    <string name="continue_watching">تابع المشاهدة</string>
+    <string name="continue_time_left">باقٍ %1$s</string>
+    <string name="msg_removed_from_continue">أُزيل من «تابع المشاهدة»</string>
+    <string name="recent_videos">آخر ما تمت مشاهدته</string>
+    <string name="recent_folders">آخر المجلدات المفتوحة</string>
+
+    <!-- التصفح -->
+    <string name="browse_loading">جارٍ التحميل…</string>
+    <string name="browse_empty_folder">هذا المجلد فارغ</string>
+    <string name="breadcrumb_root">الجذر</string>
+    <string name="items_count">%1$d عنصر</string>
+    <string name="videos_count">%1$d فيديو</string>
+    <string name="photos_count">%1$d صورة</string>
+    <string name="folders_count">%1$d مجلد</string>
+    <string name="selection_count">تم تحديد %1$d</string>
+    <string name="sort_by">فرز حسب</string>
+    <string name="sort_name_asc">الاسم (أ → ي)</string>
+    <string name="sort_name_desc">الاسم (ي → أ)</string>
+    <string name="sort_newest">الأحدث أولًا</string>
+    <string name="sort_oldest">الأقدم أولًا</string>
+    <string name="sort_largest">الأكبر حجمًا</string>
+    <string name="sort_smallest">الأصغر حجمًا</string>
+    <string name="sort_type">النوع</string>
+    <string name="sort_duration">المدة</string>
+    <string name="sort_folders_first">المجلدات أولًا</string>
+    <string name="view_mode">طريقة العرض</string>
+    <string name="view_mode_short">العرض</string>
+    <string name="view_list">قائمة</string>
+    <string name="view_grid_small">شبكة صغيرة</string>
+    <string name="view_grid_medium">شبكة متوسطة</string>
+    <string name="view_grid_large">شبكة كبيرة</string>
+    <string name="view_grid_huge">شبكة ضخمة للوسائط</string>
+    <string name="resume_badge">متبقي %1$s</string>
+    <string name="thumb_failed">المعاينة غير متوفرة</string>
+
+    <!-- تسميات -->
+    <string name="label_name">الاسم</string>
+    <string name="label_size">الحجم</string>
+    <string name="label_date">التاريخ</string>
+    <string name="label_type">النوع</string>
+    <string name="label_duration">المدة</string>
+    <string name="label_resolution">الدقة</string>
+    <string name="label_codec">الترميز (Codec)</string>
+    <string name="label_fps">معدل الإطارات</string>
+    <string name="label_audio">الصوت</string>
+    <string name="label_subtitle">الترجمة</string>
+    <string name="label_path">المسار</string>
+    <string name="label_storage">وحدة التخزين</string>
+    <string name="label_created">تاريخ الإنشاء</string>
+    <string name="label_modified">تاريخ التعديل</string>
+    <string name="label_unknown">غير معروف</string>
+
+    <!-- التفاصيل -->
+    <string name="details_title">تفاصيل الملف</string>
+
+    <!-- البحث -->
+    <string name="search_hint">ابحث عن ملفات ومجلدات</string>
+    <string name="search_filters">الفلاتر</string>
+    <string name="filter_all">الكل</string>
+    <string name="filter_videos">كل الفيديوهات</string>
+    <string name="filter_movies">الأفلام</string>
+    <string name="filter_series">المسلسلات</string>
+    <string name="filter_photos">الصور</string>
+    <string name="filter_music">الموسيقى</string>
+    <string name="filter_large">الملفات الكبيرة (1 جيجابايت+)</string>
+    <string name="search_no_results">لا توجد نتائج</string>
+    <string name="search_running">جارٍ البحث…</string>
+    <string name="search_scanned">تم فحص %1$d عنصر</string>
+
+    <!-- عمليات الملفات -->
+    <string name="ops_title">عمليات النقل</string>
+    <string name="op_copy">جارٍ النسخ</string>
+    <string name="op_move">جارٍ النقل</string>
+    <string name="op_delete">جارٍ الحذف</string>
+    <string name="op_rename">جارٍ إعادة التسمية</string>
+    <string name="op_zip">جارٍ الضغط</string>
+    <string name="op_unzip">جارٍ الاستخراج</string>
+    <string name="action_pause">إيقاف مؤقت</string>
+    <string name="action_resume_op">استئناف</string>
+    <string name="transfer_eta">متبقي %1$s</string>
+    <string name="transfer_speed">%1$s/ث</string>
+    <string name="transfer_state_queued">في الانتظار</string>
+    <string name="transfer_state_running">قيد التنفيذ</string>
+    <string name="transfer_state_paused">متوقف مؤقتًا</string>
+    <string name="transfer_state_done">مكتمل</string>
+    <string name="transfer_state_failed">فشل</string>
+    <string name="transfer_state_canceled">ملغى</string>
+    <string name="ops_channel_name">عمليات نقل الملفات</string>
+    <string name="ops_channel_desc">تقدّم عمليات النسخ والنقل والحذف والضغط</string>
+    <string name="ops_notification_title">جارٍ العمل على %1$d عنصر</string>
+    <string name="ops_done_notification">اكتملت العملية</string>
+    <string name="ops_no_jobs">لا توجد عمليات نشطة</string>
+
+    <!-- الحوارات -->
+    <string name="dialog_rename_title">إعادة تسمية</string>
+    <string name="dialog_new_folder_title">مجلد جديد</string>
+    <string name="dialog_new_file_title">ملف جديد</string>
+    <string name="dialog_delete_title">حذف %1$d عنصر؟</string>
+    <string name="dialog_delete_body">لا يمكن التراجع عن هذا الإجراء. سيتم حذف الملفات من وحدة التخزين نفسها.</string>
+    <string name="dialog_error_title">حدث خطأ</string>
+    <string name="dialog_permission_title">صلاحية الوصول للتخزين</string>
+    <string name="dialog_permission_body">اسمح بالوصول إلى الصور والفيديوهات والصوت لتصفّح التخزين الداخلي وإنشاء معاينات حقيقية. تُنشأ المعاينات بقراءة الملفات مباشرة ولا يتم نسخ أي شيء إلى ذاكرة الهاتف. أما الوحدات الخارجية (USB/OTG وSD) فتحتاج منحة واحدة لكل منها، ويطلبها أندرويد عند فتح الوحدة.</string>
+    <string name="permission_blocked_body">لم يعد أندرويد يعرض نافذة الصلاحية لهذا التطبيق. افتح إعدادات التطبيق واسمح بالوصول إلى الصور والفيديوهات والصوت ثم عُد إلى هنا.</string>
+    <string name="action_open_settings">فتح إعدادات التطبيق</string>
+    <string name="action_add_folder">إضافة مجلد</string>
+    <string name="grant_not_persisted">الوصول يعمل لهذه الجلسة فقط: رفض أندرويد حفظ المنحة. أعد توصيل الوحدة ومنحها مرة أخرى إن اختفت بعد إعادة التشغيل.</string>
+    <string name="dialog_resume_title">متابعة المشاهدة؟</string>
+    <string name="dialog_resume_body">توقفت عند %1$s (متبقي %2$s).</string>
+    <string name="bulk_find">البحث عن</string>
+    <string name="bulk_replace">الاستبدال بـ</string>
+    <string name="bulk_prefix">إضافة بادئة</string>
+    <string name="bulk_suffix">إضافة لاحقة</string>
+    <string name="bulk_numbering">ترقيم تلقائي</string>
+    <string name="bulk_start_at">البدء من</string>
+    <string name="bulk_padding">عدد الخانات</string>
+    <string name="bulk_preview">معاينة</string>
+    <string name="bulk_result_example">%1$s ← %2$s</string>
+
+    <!-- المشغل -->
+    <string name="player_speed">سرعة التشغيل</string>
+    <string name="player_aspect">نسبة العرض</string>
+    <string name="player_audio_track">مسار الصوت</string>
+    <string name="player_subtitle_track">مسار الترجمة</string>
+    <string name="player_pick_subtitle_file">تحميل ملف ترجمة…</string>
+    <string name="player_track_off">إيقاف</string>
+    <string name="player_track_auto">تلقائي</string>
+    <string name="player_track_default">افتراضي</string>
+    <string name="player_track_unknown">مسار %1$d</string>
+    <string name="aspect_fit">احتواء</string>
+    <string name="aspect_fill">ملء (تمديد)</string>
+    <string name="aspect_stretch">بعرض الشاشة</string>
+    <string name="aspect_zoom">تكبير</string>
+    <string name="player_locked">الشاشة مقفلة — اضغط على القفل للفتح</string>
+    <string name="player_unsupported">تعذّر تشغيل هذا الملف. قد يكون الترميز غير مدعوم من الجهاز.</string>
+    <string name="player_next">التالي</string>
+    <string name="player_previous">السابق</string>
+
+    <!-- الإعدادات -->
+    <string name="settings_title">الإعدادات</string>
+    <string name="settings_thumbnails">المعاينات</string>
+    <string name="setting_video_thumbs">معاينات الفيديو</string>
+    <string name="setting_video_thumbs_desc">استخراج إطار حقيقي من ملف الفيديو نفسه على الفلاشة</string>
+    <string name="setting_image_thumbs">معاينات الصور</string>
+    <string name="setting_image_thumbs_desc">عرض الصورة نفسها بدلًا من أيقونة</string>
+    <string name="setting_folder_covers">أغلفة المجلدات</string>
+    <string name="setting_folder_covers_desc">استخدام صورة باسم poster أو folder أو cover داخل المجلد كغلاف له في عرض الشبكة، ولا تستخدم أي صورة أخرى</string>
+    <string name="setting_audio_art">أغلفة الموسيقى</string>
+    <string name="setting_audio_art_desc">عرض الصورة المخزّنة داخل ملف الصوت نفسه، وتُقرأ من الملف ولا تُنزَّل من الإنترنت</string>
+    <string name="setting_thumb_size">حجم المعاينة</string>
+    <string name="setting_thumb_quality">جودة المعاينة</string>
+    <string name="setting_frame_position">الإطار المستخدم للمعاينة</string>
+    <string name="setting_frame_auto_desc">يجرّب عدة مواضع زمنية ويختار أوضح إطار غير أسود</string>
+    <string name="setting_prefer_embedded_cover">تفضيل الغلاف المدمج</string>
+    <string name="setting_prefer_embedded_cover_desc">استخدام البوستر المخزّن داخل MKV/MP4 عند توفره</string>
+    <string name="setting_charging_only">إنشاء المعاينات أثناء الشحن فقط</string>
+    <string name="setting_cache">التخزين المؤقت</string>
+    <string name="setting_cache_limit">الحد الأقصى لحجم الكاش</string>
+    <string name="setting_cache_used">المساحة المستخدمة</string>
+    <string name="setting_clear_cache">مسح الكاش</string>
+    <string name="setting_clear_cache_done">تم مسح الكاش</string>
+    <string name="setting_clean_orphans">حذف مداخل الملفات المحذوفة</string>
+    <string name="setting_appearance">المظهر</string>
+    <string name="setting_theme">السمة</string>
+    <string name="theme_system">حسب النظام</string>
+    <string name="theme_light">فاتح</string>
+    <string name="theme_dark">داكن</string>
+    <string name="setting_dynamic_color">ألوان Material You</string>
+    <string name="setting_language">اللغة</string>
+    <string name="language_system">لغة النظام</string>
+    <string name="language_en">English</string>
+    <string name="language_ar">العربية</string>
+    <string name="setting_player">التشغيل</string>
+    <string name="setting_resume_prompt">السؤال قبل الاستئناف</string>
+    <string name="setting_subtitle_autodetect">اكتشاف الترجمة تلقائيًا</string>
+    <string name="setting_subtitle_autodetect_desc">مطابقة Movie.srt بجانب Movie.mkv تلقائيًا</string>
+    <string name="setting_advanced">خيارات متقدمة</string>
+    <string name="setting_show_hidden">إظهار الملفات المخفية</string>
+    <string name="setting_lazy_metadata">تحميل معلومات الوسائط تدريجيًا</string>
+    <string name="setting_lazy_metadata_desc">قراءة المدة والدقة للعناصر الظاهرة فقط</string>
+    <string name="setting_about">حول التطبيق</string>
+    <string name="setting_about_desc">يعمل بالكامل بدون إنترنت: لا حسابات ولا سحابة ولا بوسترات تُحمَّل.</string>
+
+    <string name="frame_first">أول إطار</string>
+    <string name="frame_5">5% من المدة</string>
+    <string name="frame_10">10% من المدة</string>
+    <string name="frame_25">25% من المدة</string>
+    <string name="frame_middle">منتصف الفيديو</string>
+    <string name="frame_auto">تلقائي (أفضل إطار)</string>
+
+    <string name="thumb_size_small">صغير (أسرع)</string>
+    <string name="thumb_size_medium">متوسط</string>
+    <string name="thumb_size_large">كبير</string>
+    <string name="thumb_size_xlarge">كبير جدًا (أوضح)</string>
+
+    <!-- الأخطاء والتنبيهات -->
+    <string name="error_no_permission">لا توجد صلاحية لقراءة وحدة التخزين هذه</string>
+    <string name="error_device_disconnected">تم فصل وحدة التخزين</string>
+    <string name="error_operation_failed">فشلت العملية</string>
+    <string name="error_empty_name">الاسم لا يمكن أن يكون فارغًا</string>
+    <string name="error_name_exists">يوجد عنصر بالاسم نفسه</string>
+    <string name="error_no_storage_permission">لا يوجد إذن وصول للتخزين — امنحه حتى يتمكن التطبيق من إنشاء الملفات وتعديلها</string>
+    <string name="error_create_failed">تعذر إنشاء العنصر هنا — أعد منح الوصول إلى هذا المجلد</string>
+    <string name="error_unsupported">ملف غير مدعوم</string>
+    <string name="msg_copied_to_clipboard">تم نسخ المسار</string>
+    <string name="msg_added_to_favorites">تمت الإضافة إلى المفضلة</string>
+    <string name="msg_removed_from_favorites">تمت الإزالة من المفضلة</string>
+    <string name="msg_items_selected_for_copy">%1$d عنصر جاهز للنسخ — افتح الوجهة ثم اضغط لصق</string>
+    <string name="msg_items_selected_for_move">%1$d عنصر جاهز للنقل — افتح الوجهة ثم اضغط لصق</string>
+    <string name="msg_no_selection">اختر مجلد الوجهة أولًا</string>
+    <string name="msg_deleted">تم الحذف</string>
+    <string name="msg_renamed">تمت إعادة التسمية</string>
+    <string name="msg_created">تم الإنشاء</string>
+    <string name="msg_shared_failed">لا يوجد تطبيق يستطيع فتح هذا الملف</string>
+
+    <!-- أوصاف إمكانية الوصول -->
+    <string name="cd_thumbnail">معاينة الوسائط</string>
+    <string name="cd_select">تحديد</string>
+    <string name="cd_volume_icon">وحدة تخزين</string>
+    <string name="cd_clear">مسح</string>
+
+    <!-- إعادة التصميم: وحدات التخزين -->
+    <string name="volume_usb_tag">USB</string>
+    <string name="volume_connected">متصل</string>
+    <string name="volume_not_connected">غير متصل</string>
+    <string name="volume_needs_permission_short">مطلوب صلاحية</string>
+    <string name="volume_remove_grant">إزالة صلاحية الوصول</string>
+    <string name="volume_used_of_total">%1$s من %2$s</string>
+    <string name="volume_free_space">متوفر %1$s</string>
+    <string name="volume_capacity_short">السعة %1$s</string>
+    <string name="volume_used_label">المستخدم</string>
+    <string name="volume_free_label">الحر</string>
+    <string name="volume_details_group">الوحدة</string>
+    <string name="volume_mount_label">نقطة التحميل</string>
+    <string name="volume_id_label">المعرّف</string>
+    <string name="volume_access_label">طريقة الوصول</string>
+    <string name="volume_access_saf">مجلد ممنوح (إطار الوصول للتخزين)</string>
+    <string name="volume_access_runtime">صلاحية الوسائط</string>
+    <string name="volume_removable_label">قابل للإزالة</string>
+    <string name="volume_state_ready">جاهز</string>
+    <string name="label_state">الحالة</string>
+    <string name="label_filesystem">نظام الملفات</string>
+    <string name="answer_yes">نعم</string>
+    <string name="answer_no">لا</string>
+    <string name="home_volumes_summary">%1$d وحدات • %2$s حرة</string>
+    <string name="home_volumes_summary_one">وحدة واحدة • %1$s حرة</string>
+    <string name="recent_folders_window">آخر ساعتين</string>
+    <string name="quick_transfers">النقل</string>
+    <string name="quick_all_folders">كل المجلدات</string>
+    <!-- إعادة التصميم: أول تشغيل -->
+    <string name="onboarding_title">جهّز الوصول مرة واحدة</string>
+    <string name="onboarding_body">امنح كل ما يحتاجه التطبيق بخطوة واحدة: الوصول إلى الوسائط لتصفح التخزين الداخلي، والإشعارات لمتابعة عمليات النسخ والنقل. أما الوحدات الخارجية (USB وSD) فتطلب منحًا منفصلًا لكل واحدة عند فتحها فقط.</string>
+    <string name="onboarding_grant_all">منح جميع الأذونات</string>
+    <string name="onboarding_later">ليس الآن</string>
+    <string name="onboarding_permissions_row">الوسائط والإشعارات</string>
+    <string name="permission_strip_title">الوصول إلى الوسائط معطّل</string>
+    <string name="permission_strip_body">اسمح بالصور والفيديو والصوت مرة واحدة لتتمكن من تصفح التخزين الداخلي.</string>
+    <string name="msg_removed_from_recents">أُزيل من الأخيرة</string>
+
+    <!-- إعادة التصميم: التصفح والترتيب والتصفية والقوائم -->
+    <string name="view_compact_list">قائمة مضغوطة</string>
+    <string name="view_mode_hint">طريقة عرض العناصر في هذا المجلد</string>
+    <string name="label_current">الحالي</string>
+    <string name="sort_group_field">الترتيب حسب</string>
+    <string name="sort_group_direction">الاتجاه</string>
+    <string name="sort_direction_asc">تصاعدي</string>
+    <string name="sort_direction_desc">تنازلي</string>
+    <string name="sort_field_name">الاسم</string>
+    <string name="sort_field_date">التاريخ</string>
+    <string name="sort_field_size">الحجم</string>
+    <string name="sort_field_type">النوع</string>
+    <string name="sort_field_duration">المدة</string>
+    <string name="sheet_group_basic">أساسي</string>
+    <string name="sheet_group_manage">إدارة</string>
+    <string name="sheet_group_organise">تنظيم</string>
+    <string name="sheet_subtitle_multiple">عدة عناصر محددة</string>
+    <string name="action_play">تشغيل</string>
+    <string name="action_open_with">فتح بواسطة…</string>
+    <string name="action_shortcut">اختصار على الشاشة الرئيسية</string>
+    <string name="action_select">تحديد</string>
+    <string name="action_clear">مسح</string>
+    <string name="action_clear_filters">مسح عوامل التصفية</string>
+    <string name="action_show_hidden">إظهار الملفات المخفية</string>
+    <string name="action_hide_hidden">إخفاء الملفات المخفية</string>
+    <string name="action_search_volume">البحث في هذه الوحدة</string>
+    <string name="action_reset_folder_view">إعادة ضبط عرض المجلد</string>
+    <string name="action_all_actions">كل الإجراءات…</string>
+    <string name="search_in_folder">ابحث في هذا المجلد</string>
+    <string name="search_results_count">%1$d نتيجة</string>
+    <string name="browse_no_match_body">لا يوجد هنا ما يطابق البحث أو التصفية الحالية.</string>
+    <string name="browse_empty_body">لا توجد عناصر في هذا المجلد بعد.</string>
+    <string name="browse_filtered_count">%1$d من %2$d عنصرًا</string>
+    <string name="filter_folders">مجلدات</string>
+    <string name="filter_files">ملفات</string>
+    <string name="filter_archives">أرشيفات</string>
+    <string name="msg_no_app_to_open">لا يوجد تطبيق يفتح هذا الملف</string>
+    <string name="msg_shortcut_unsupported">مشغّل الشاشة لديك لا يدعم الاختصارات المثبّتة</string>
+    <string name="type_folder">مجلد</string>
+    <string name="type_video">فيديو</string>
+    <string name="type_image">صورة</string>
+    <string name="type_audio">صوت</string>
+    <string name="type_subtitle">ترجمة</string>
+    <string name="type_archive">أرشيف</string>
+    <string name="type_document">مستند</string>
+    <string name="type_apk">تطبيق</string>
+    <string name="type_other">ملف</string>
+
+    <!-- إعادة التصميم: أقسام الإعدادات وأوصافها -->
+    <string name="settings_section_browse">التصفح</string>
+    <string name="settings_section_media">معاينات الوسائط</string>
+    <string name="settings_section_storage">التخزين</string>
+    <string name="settings_section_permissions">الأذونات</string>
+    <string name="settings_section_privacy">الخصوصية</string>
+    <string name="settings_no_volumes">لا توجد وحدات ظاهرة بعد</string>
+    <string name="settings_permissions_note">لماذا هذه الأذونات</string>
+    <string name="settings_permissions_note_desc">الوصول إلى الوسائط يقرأ التخزين الداخلي. أما الوحدات الخارجية (USB وSD) فتُمنح مجلدًا واحدًا في كل مرة عبر منتقي النظام، ولا تُخزَّن في أي مكان آخر.</string>
+    <string name="setting_theme_desc">فاتح أو داكن أو حسب النظام</string>
+    <string name="setting_dynamic_color_desc">استخدام ألوان التطبيق من خلفية الشاشة (أندرويد 12 وأحدث)</string>
+    <string name="setting_language_desc">لغة الواجهة، وتُطبَّق فورًا</string>
+    <string name="setting_item_scale">حجم العناصر</string>
+    <string name="setting_item_scale_desc">ارتفاع الصف وحجم الصورة المصغرة وأعمدة الشبكة</string>
+    <string name="item_scale_compact">مضغوط</string>
+    <string name="item_scale_normal">عادي</string>
+    <string name="item_scale_large">كبير</string>
+    <string name="setting_default_view_desc">يُستخدم للمجلدات التي لا تملك تفضيلًا محفوظًا</string>
+    <string name="setting_default_sort_desc">يُطبَّق عند فتح مجلد جديد</string>
+    <string name="setting_folders_first_desc">إبقاء المجلدات فوق الملفات في كل القوائم</string>
+    <string name="setting_show_hidden_desc">إظهار الملفات والمجلدات التي يبدأ اسمها بنقطة</string>
+    <string name="setting_show_extensions">إظهار امتدادات الملفات</string>
+    <string name="setting_show_extensions_desc">إبقاء mp4 وjpg وغيرها ظاهرة في الأسماء</string>
+    <string name="setting_show_media_info">إظهار معلومات الوسائط</string>
+    <string name="setting_show_media_info_desc">الحجم والمدة والدقة تحت كل عنصر</string>
+    <string name="setting_remember_folder_view">تذكّر العرض لكل مجلد</string>
+    <string name="setting_remember_folder_view_desc">الاحتفاظ بطريقة العرض والترتيب التي اخترتها داخل كل مجلد</string>
+    <string name="setting_frame_position_desc">من أي لحظة في الفيديو تؤخذ الصورة المصغرة</string>
+    <string name="setting_thumb_size_desc">المعاينات الأكبر أوضح لكنها تستهلك ذاكرة مؤقتة أكثر</string>
+    <string name="setting_charging_only_desc">إنشاء المعاينات الناقصة أثناء الشحن فقط</string>
+    <string name="setting_resume_prompt_desc">السؤال عن متابعة فيديو شاهدت جزءًا منه</string>
+    <string name="setting_keep_screen_on">إبقاء الشاشة مضاءة</string>
+    <string name="setting_keep_screen_on_desc">منع إطفاء الشاشة أثناء تشغيل الفيديو</string>
+    <string name="setting_aspect_desc">الإطار الافتراضي في المشغّل</string>
+    <string name="setting_cache_limit_desc">تُحذف المعاينات الأقدم عندما تتجاوز الذاكرة هذا الحد</string>
+    <string name="privacy_clear_recents">مسح المجلدات ومقاطع الفيديو الأخيرة</string>
+    <string name="privacy_clear_recents_desc">يحذف السجل الظاهر في الشاشة الرئيسية</string>
+    <string name="privacy_clear_favorites">مسح المفضلة</string>
+    <string name="privacy_clear_favorites_desc">يحذف كل الملفات والمجلدات المحفوظة</string>
+    <string name="privacy_clear_positions">مسح مواضع التشغيل المنتهية</string>
+    <string name="privacy_clear_positions_desc">يبقي نقاط المتابعة للفيديوهات التي لم تكملها</string>
+    <string name="privacy_cleared">تم المسح</string>
+    <string name="dialog_clear_cache_title">مسح ذاكرة المعاينات؟</string>
+    <string name="dialog_clear_cache_body">سيُحذف %1$s من المعاينات المحفوظة. وتُعاد المعاينات من ملفاتك عند تصفحها مرة أخرى.</string>
+    <string name="dialog_clear_data_body">لا يمكن التراجع عن هذا الإجراء.</string>
+    <string name="about_version">الإصدار %1$s</string>
+    <string name="about_storage_layer">الوصول إلى التخزين</string>
+    <string name="about_storage_layer_desc">التخزين الداخلي عبر صلاحية الوسائط، ووحدات USB وSD عبر إطار الوصول للتخزين، وبالسلوك نفسه من أندرويد 7 إلى 15.</string>
+    <string name="perm_media_video">الفيديوهات</string>
+    <string name="perm_media_images">الصور</string>
+    <string name="perm_media_audio">الصوت</string>
+    <string name="perm_media_selected">صور وفيديوهات محددة</string>
+    <string name="perm_storage_read">التخزين (إصدارات أندرويد الأقدم)</string>
+    <string name="perm_notifications">الإشعارات لعمليات النقل</string>
+    <string name="action_home">الرئيسية</string>
+    <string name="create_new_title">إنشاء</string>
+    <string name="create_new_hint">مجلد أو ملف جديد في هذا الموقع</string>
+    <string name="setting_show_technical_paths">المسارات التقنية (متقدم)</string>
+    <string name="setting_show_technical_paths_desc">إظهار أنظمة الملفات ونقاط التركيب ومعرّفات الوحدات في تفاصيل وحدة التخزين</string>
+    <string name="perm_all_files">الوصول إلى كل الملفات</string>
+    <string name="perm_other">صلاحية أخرى</string>
+    <string name="perm_state_granted">ممنوحة</string>
+    <string name="perm_state_denied">غير ممنوحة</string>
+    <string name="perm_state_blocked">محظورة — غيّرها من إعدادات النظام</string>
+
+    <!-- إعادة التصميم: شاشات المكتبة -->
+    <string name="empty_favorites_title">لا توجد مفضلات بعد</string>
+    <string name="empty_favorites_body">اضغط على القلب في أي ملف أو مجلد ليُحفظ هنا، حتى لو فُصلت وحدته.</string>
+    <string name="favorites_unavailable_title">غير متاح حاليًا</string>
+    <string name="action_remove_unavailable">إزالة العناصر غير المتاحة</string>
+    <string name="action_clear_all">مسح الكل</string>
+    <string name="empty_recent_videos">لم تشاهد شيئًا بعد</string>
+    <string name="empty_recent_folders">لم يُفتح أي مجلد بعد</string>
+    <string name="empty_recent_body">ما تفتحه يظهر هنا لتتمكن من متابعته مرة أخرى.</string>
+    <string name="dialog_clear_recents_title">مسح السجل الأخير؟</string>
+
+    <!-- إعادة التصميم: المشغّل والعارض والتفاصيل -->
+    <string name="player_rotate">تدوير الشاشة</string>
+    <string name="action_rotate">تدوير</string>
+    <string name="label_extension">الامتداد</string>
+
+    <!-- إعادة التصميم: البحث -->
+    <string name="search_matches_count">%1$d نتيجة مطابقة</string>
+    <string name="search_start_body">اكتب اسمًا أو اختر عامل تصفية: الأفلام والمسلسلات تُكتشف من الملصق الموجود داخل مجلدها.</string>
+    <string name="search_no_results_body">جرّب اسمًا أقصر، أو امسح عوامل التصفية للبحث في كل شيء مرة أخرى.</string>
+    <string name="ops_no_jobs_body">عمليات النسخ والنقل والحذف والضغط وفك الضغط تعرض تقدّمها هنا أثناء تنفيذها.</string>
+
+    <!-- إعادة التصميم: أقسام الذاكرة المؤقتة -->
+    <string name="cache_kind_video">مصغرات الفيديو</string>
+    <string name="cache_kind_image">معاينات الصور</string>
+    <string name="cache_kind_cover">أغلفة المجلدات</string>
+    <string name="cache_kind_audio">أغلفة الموسيقى</string>
+    <string name="cache_kind_other">معاينات أخرى</string>
+    <string name="cache_kind_detail">%1$d عنصر • %2$s</string>
+    <!-- إعادة التصميم: عوامل تصفية البحث -->
+    <string name="filter_recent">آخر ٧ أيام</string>
+    <!-- إعادة التصميم: التحديد -->
+    <string name="action_select_content">تحديد محتوى المجلد</string>
+</resources>

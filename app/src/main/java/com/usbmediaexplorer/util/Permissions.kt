@@ -1,0 +1,137 @@
+package com.usbmediaexplorer.util
+
+import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.Settings
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+
+/**
+ * Runtime-permission helpers.
+ *
+ * Two routes unlock storage: the ordinary runtime permission (media on 13+, storage on older
+ * versions — on legacy Android this covers removable mounts too), and the special all-files
+ * access on Android 11+ ([hasAllFilesAccess]), which is the only way raw paths keep working for
+ * non-media files there. Where neither route applies, a single SAF tree grant per removable
+ * volume remains the fallback.
+ */
+object Permissions {
+
+    /** Permissions needed to read the *internal* storage by path. */
+    fun mediaPermissions(): Array<String> {
+        val list = ArrayList<String>(4)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            // Android 14 "Select photos and videos" (partial access).
+            list += Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            list += Manifest.permission.READ_MEDIA_VIDEO
+            list += Manifest.permission.READ_MEDIA_IMAGES
+            list += Manifest.permission.READ_MEDIA_AUDIO
+        } else {
+            list += Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+        return list.toTypedArray()
+    }
+
+    /**
+     * Everything the app asks for at runtime in one call: media access, plus notifications while
+     * they are still missing (the transfer notification is useless without them on Android 13+).
+     */
+    fun runtimePermissions(context: Context): Array<String> {
+        val list = mediaPermissions().toMutableList()
+        // Same dialog, but explicit: copy/move/delete onto shared storage needs the write half
+        // on API <= 29, and relying on group-grant behaviour alone is needlessly fragile.
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q) {
+            list += Manifest.permission.WRITE_EXTERNAL_STORAGE
+        }
+        if (needsNotificationPermission(context)) list += Manifest.permission.POST_NOTIFICATIONS
+        return list.toTypedArray()
+    }
+
+    /** Android 11+ only: the special "All files access" app-op exists there and nowhere else. */
+    fun supportsAllFilesAccess(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+
+    /**
+     * True when the user toggled "Allow access to manage all files" for this app. The only route
+     * that makes raw paths work for every file (documents, archives, non-media) on Android 11+,
+     * internal and removable alike.
+     */
+    fun hasAllFilesAccess(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()
+
+    /**
+     * Combined gate: "can the app read the drives" — via all-files access (11+) or via the
+     * ordinary media/storage permission. Callers should not care which route granted it.
+     */
+    fun hasStorageAccess(context: Context): Boolean =
+        hasAllFilesAccess() || hasMediaAccess(context)
+
+    /** The system screen where all-files access is toggled. Callers guard with [supportsAllFilesAccess]. */
+    fun allFilesAccessIntent(packageName: String): Intent = Intent(
+        Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+        Uri.parse("package:$packageName"),
+    )
+
+    private fun granted(context: Context, permission: String): Boolean =
+        ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+
+    /**
+     * True when the app can really read media from the internal storage.
+     *
+     * Deliberately *not* "any of the permissions is granted": on Android 13+ an audio-only grant
+     * says nothing about videos and photos, and on Android 14+ the user may pick partial access,
+     * which is reported through READ_MEDIA_VISUAL_USER_SELECTED alone.
+     */
+    fun hasMediaAccess(context: Context): Boolean = when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE ->
+            granted(context, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) ||
+                (
+                    granted(context, Manifest.permission.READ_MEDIA_VIDEO) &&
+                        granted(context, Manifest.permission.READ_MEDIA_IMAGES)
+                    )
+
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ->
+            // AND, not OR: an images-only or video-only grant is partial access — treating it as
+            // full access hid the permission UI while half the library stayed unreadable.
+            granted(context, Manifest.permission.READ_MEDIA_VIDEO) &&
+                granted(context, Manifest.permission.READ_MEDIA_IMAGES)
+
+        else -> granted(context, Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
+
+    /**
+     * True when a media permission is denied *and* Android will no longer show a dialog for it
+     * (the user picked "Don't ask again"). Only meaningful right after a request result — before
+     * any request the rationale flag is false as well.
+     */
+    fun permanentlyDenied(activity: Activity): Boolean =
+        missingMediaPermissions(activity).any { permission ->
+            !ActivityCompat.shouldShowRequestPermissionRationale(activity, permission)
+        }
+
+    /** This app's page in the system settings, the only way out of a permanent denial. */
+    fun appSettingsIntent(packageName: String): Intent = Intent(
+        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+        Uri.fromParts("package", packageName, null),
+    )
+
+    fun missingMediaPermissions(context: Context): List<String> =
+        mediaPermissions().filter {
+            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+    /** Android 13+ hides the ongoing-transfer notification until this is granted. */
+    fun needsNotificationPermission(context: Context): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS,
+            ) != PackageManager.PERMISSION_GRANTED
+}

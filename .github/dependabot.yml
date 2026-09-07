@@ -1,0 +1,15 @@
+# Keep CI actions and Gradle dependencies current; PRs alone never change a pinned SHA
+# without a review, which is exactly the supply-chain hygiene the audit asks for.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly

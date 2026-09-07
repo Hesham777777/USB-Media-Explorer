@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Coloured file-type document icon: folded-corner page + white glyph. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path android:fillColor="#F0662E" android:pathData="M12,4 H28 L40,16 V40 A4,4 0 0 1 36,44 H12 A4,4 0 0 1 8,40 V8 A4,4 0 0 1 12,4 Z" />
+    <path android:fillColor="#F8B392" android:pathData="M28,4 V12 A4,4 0 0 0 32,16 H40 Z" />
+    <path android:fillColor="#FFFFFF" android:fillType="evenOdd" android:pathData="M22.5,21 a8,8 0 1 1 -0.01,0 Z M22.5,29 L22.5,21 A8,8 0 0 1 30.5,29 Z M25,26.5 L25,18.5 A8,8 0 0 1 33,26.5 Z" />
+</vector>

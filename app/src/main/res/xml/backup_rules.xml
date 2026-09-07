@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    allowBackup is false, so nothing here is normally backed up. The exclusions stay as
+    defense-in-depth (device-transfer / a future flag flip): the user's history — what they
+    watched, when, and where they stopped — never leaves the device (audit item 6).
+-->
+<full-backup-content>
+    <!-- Thumbnails can always be regenerated from the drive itself -->
+    <exclude
+        domain="file"
+        path="thumbs/" />
+    <exclude
+        domain="database"
+        path="." />
+    <!-- History / personal-data JSON stores -->
+    <exclude
+        domain="file"
+        path="recent.json" />
+    <exclude
+        domain="file"
+        path="favorites.json" />
+    <exclude
+        domain="file"
+        path="playback.json" />
+    <exclude
+        domain="file"
+        path="metadata.json" />
+    <exclude
+        domain="file"
+        path="folder_prefs.json" />
+    <exclude
+        domain="file"
+        path="opsjournal.json" />
+</full-backup-content>

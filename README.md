@@ -1,4 +1,22 @@
 # USB-Media-Explorer
+
+> **حالة التنفيذ:** المواصفات التالية مُنفَّذة بالكامل في الكود المصدري (Kotlin + Jetpack Compose + Material 3 + Media3 ExoPlayer + Coil).
+>
+> | | |
+> |---|---|
+> | البناء والتشغيل خطوة بخطوة | [`docs/BUILD.md`](docs/BUILD.md) |
+> | البنية المعمارية ومكان كل ميزة | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+> | الكود | `app/src/main/java/com/usbmediaexplorer/` |
+> | اختبارات الوحدات | `app/src/test/java/com/usbmediaexplorer/` |
+> | **تحميل APK جاهز** | [إصدار `apk-latest`](https://github.com/Hesham777777/USB-Media-Explorer/releases/tag/apk-latest) — يُحدَّث تلقائيًا مع كل بناء ناجح |
+> | بناء APK تلقائيًا | [`.github/workflows/build-apk.yml`](.github/workflows/build-apk.yml) |
+> | **أغلفة المجلدات (Folder Cover)** | كل مجلد فيلم يظهر كبطاقة بوستر: صورة البوستر الموجودة *داخل* المجلد تُستخدم غلافًا له، والضغط على الغلاف يفتح المجلد نفسه. بلا إنترنت وبلا أي تعديل على الملفات |
+> | **المعاينات الحقيقية** | الفيديو = إطار مُستخرج من الملف نفسه · الصورة = الصورة نفسها · المجلد = البوستر الذي بداخله · غير ذلك = أيقونة النوع |
+>
+> النص الأصلي للمواصفات محفوظ كما هو بالأسفل.
+
+---
+
 اسم المشروع:
 USB Media Explorer
 
