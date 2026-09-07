@@ -47,16 +47,6 @@ class MetadataRepository(
     private val inFlight = ConcurrentHashMap.newKeySet<String>()
     private val readGate = Semaphore(2)
 
-    init {
-        repeat(workers) {
-            scope.launch {
-                for (node in queue) {
-                    runCatching { load(node) }
-                }
-            }
-        }
-    }
-
     fun cached(node: DocNode): MediaMetadata? {
         memory[node.key]?.let { return it }
         return store.get(node.key)?.also { memory[node.key] = it }
@@ -105,6 +95,19 @@ class MetadataRepository(
     private val pending = ConcurrentHashMap<String, MediaMetadata>()
     private val publishGate = Any()
     private var publishScheduled = false
+
+    // Started only after every field a worker can touch (pending, publishGate,
+    // publishScheduled above) is initialized: a coroutine launched earlier in the constructor
+    // can be scheduled before later field initializers run and read them as null.
+    init {
+        repeat(workers) {
+            scope.launch {
+                for (node in queue) {
+                    runCatching { load(node) }
+                }
+            }
+        }
+    }
 
     /**
      * Publishing a fresh snapshot per resolved file means a full map copy per file — O(n²) churn

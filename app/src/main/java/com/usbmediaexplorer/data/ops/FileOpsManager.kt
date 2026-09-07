@@ -82,6 +82,23 @@ class FileOpsManager(
 
     private fun volumeLockFor(key: String): Mutex = volumeLocks.computeIfAbsent(key) { Mutex() }
 
+
+    private val _jobs = MutableStateFlow<List<JobProgress>>(emptyList())
+    val jobs: StateFlow<List<JobProgress>> = _jobs.asStateFlow()
+
+    private val _activeJob = MutableStateFlow<JobProgress?>(null)
+    val activeJob: StateFlow<JobProgress?> = _activeJob.asStateFlow()
+
+    private val _events = MutableSharedFlow<OpsEvent>(
+        replay = 0,
+        extraBufferCapacity = 16,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val events: SharedFlow<OpsEvent> = _events.asSharedFlow()
+
+    private val _clipboard = MutableStateFlow<Clipboard?>(null)
+    val clipboard: StateFlow<Clipboard?> = _clipboard.asStateFlow()
+
     init {
         // Crash recovery: a STAGING journal entry means the process died mid-operation. Sweep
         // the tokenized staging leftovers out of the destination and mark the entry failed;
@@ -105,22 +122,6 @@ class FileOpsManager(
             }
         }
     }
-
-    private val _jobs = MutableStateFlow<List<JobProgress>>(emptyList())
-    val jobs: StateFlow<List<JobProgress>> = _jobs.asStateFlow()
-
-    private val _activeJob = MutableStateFlow<JobProgress?>(null)
-    val activeJob: StateFlow<JobProgress?> = _activeJob.asStateFlow()
-
-    private val _events = MutableSharedFlow<OpsEvent>(
-        replay = 0,
-        extraBufferCapacity = 16,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
-    )
-    val events: SharedFlow<OpsEvent> = _events.asSharedFlow()
-
-    private val _clipboard = MutableStateFlow<Clipboard?>(null)
-    val clipboard: StateFlow<Clipboard?> = _clipboard.asStateFlow()
 
     // ------------------------------------------------------------------
     // Public API used by the UI

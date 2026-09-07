@@ -26,6 +26,7 @@ app/release/
 keystore/ci.p12
 
 # Logs / profiling
+ci-mapping.txt
 *.log
 *.hprof
 captures/

@@ -64,6 +64,23 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     private val volumeRepository = container.volumeRepository
     private val docRepository = container.docRepository
 
+    // DECLARATION ORDER IS LOAD-BEARING: the init block below launches collectors on
+    // Dispatchers.Main.immediate, which start *synchronously inside the constructor*. A
+    // StateFlow that already holds data (the JSON stores load during Application.onCreate)
+    // emits before the constructor finishes, and a withContext(IO) submitted at that moment
+    // races the remaining field initializers — a map declared after init can still read as
+    // null on the IO thread (observed in the field: NPE on HashMap.size(), startup crash).
+    // Every field the init coroutines can reach MUST be initialized above the init block.
+
+    /**
+     * Nodes for the resume row, cached by key: only brand-new bookmarks deserve a provider
+     * query. A file that cannot be resolved right now (its USB drive is unplugged) is skipped
+     * silently — the bookmark itself must survive until the drive returns.
+     */
+    private val continueNodes = HashMap<String, DocNode>()
+
+    private var mediaGranted: Boolean? = null
+
     val hasAnyVolume: StateFlow<Boolean> = volumeRepository.volumes
         .map { it.isNotEmpty() }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
@@ -118,8 +135,6 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     fun refresh() {
         viewModelScope.launch { volumeRepository.refresh() }
     }
-
-    private var mediaGranted: Boolean? = null
 
     /**
      * Records the media-permission state after a resume and reports whether it *changed*.
@@ -226,13 +241,6 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         continueNodes.remove(entry.position.key)
         viewModelScope.launch { container.playbackPositionStore.clear(entry.position.key) }
     }
-
-    /**
-     * Nodes for the resume row, cached by key: only brand-new bookmarks deserve a provider
-     * query. A file that cannot be resolved right now (its USB drive is unplugged) is skipped
-     * silently — the bookmark itself must survive until the drive returns.
-     */
-    private val continueNodes = HashMap<String, DocNode>()
 
     private suspend fun resolvePositions(positions: List<PlaybackPosition>): List<ContinueEntry> =
         withContext(Dispatchers.IO) {
