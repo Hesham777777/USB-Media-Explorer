@@ -263,6 +263,8 @@
     <string name="error_operation_failed">فشلت العملية</string>
     <string name="error_empty_name">الاسم لا يمكن أن يكون فارغًا</string>
     <string name="error_name_exists">يوجد عنصر بالاسم نفسه</string>
+    <string name="error_no_storage_permission">لا يوجد إذن وصول للتخزين — امنحه حتى يتمكن التطبيق من إنشاء الملفات وتعديلها</string>
+    <string name="error_create_failed">تعذر إنشاء العنصر هنا — أعد منح الوصول إلى هذا المجلد</string>
     <string name="error_unsupported">ملف غير مدعوم</string>
     <string name="msg_copied_to_clipboard">تم نسخ المسار</string>
     <string name="msg_added_to_favorites">تمت الإضافة إلى المفضلة</string>

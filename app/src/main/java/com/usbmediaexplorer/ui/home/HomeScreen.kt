@@ -210,6 +210,24 @@ fun HomeScreen(snackbarHostState: SnackbarHostState) {
         if (!settings.firstRunPermissionsAsked) showOnboarding = true
     }
 
+    // Self-healing for the restored-backup trap: a reinstall brings the app data (including
+    // firstRunPermissionsAsked=true) back from cloud backup, but Android resets the actual
+    // permission grants — onboarding is skipped and every copy/move/create silently fails.
+    // Whenever access is genuinely missing and Android will still show the dialog, ask again
+    // (once per launch). "Blocked" (permanently denied) keeps using the settings-card route.
+    var autoReasked by remember { mutableStateOf(false) }
+    LaunchedEffect(state.needsMediaPermission, state.mediaPermissionBlocked) {
+        if (
+            settings.firstRunPermissionsAsked &&
+            state.needsMediaPermission &&
+            !state.mediaPermissionBlocked &&
+            !autoReasked
+        ) {
+            autoReasked = true
+            permissionLauncher.launch(Permissions.runtimePermissions(context))
+        }
+    }
+
     val volumes = state.volumes
     val readyVolumes = volumes.filter { it.isReady }
     val freeTotal = readyVolumes.sumOf { it.freeBytes ?: 0L }

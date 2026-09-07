@@ -264,6 +264,8 @@
     <string name="error_operation_failed">Operation failed</string>
     <string name="error_empty_name">Name cannot be empty</string>
     <string name="error_name_exists">An item with this name already exists</string>
+    <string name="error_no_storage_permission">No storage permission — grant it so the app can create and modify files</string>
+    <string name="error_create_failed">Could not create the item here — re-grant access to this folder</string>
     <string name="error_unsupported">Unsupported file</string>
     <string name="msg_copied_to_clipboard">Path copied</string>
     <string name="msg_added_to_favorites">Added to favorites</string>

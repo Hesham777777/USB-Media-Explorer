@@ -1,8 +1,11 @@
 package com.usbmediaexplorer.data.ops
 
+import android.content.ContentResolver
 import android.content.Context
+import com.usbmediaexplorer.R
 import com.usbmediaexplorer.data.doc.DocNode
 import com.usbmediaexplorer.data.doc.DocRelation
+import com.usbmediaexplorer.util.Permissions
 import com.usbmediaexplorer.data.doc.DocRepository
 import com.usbmediaexplorer.data.metadata.MetadataRepository
 import com.usbmediaexplorer.data.thumb.ThumbnailRepository
@@ -39,6 +42,7 @@ class FileOpsEngine(
 
     suspend fun copy(items: List<DocNode>, destination: DocNode, ctx: OpContext): OpResult =
         withContext(Dispatchers.IO) {
+            unwritableReason(destination)?.let { return@withContext OpResult(false, 0, 0, it) }
             // Per-job cache: concurrent operations must not share (or clear) one mutable map
             // (audit item 4).
             val cache = HashMap<String, MutableSet<String>>()
@@ -66,6 +70,7 @@ class FileOpsEngine(
 
     suspend fun move(items: List<DocNode>, destination: DocNode, ctx: OpContext): OpResult =
         withContext(Dispatchers.IO) {
+            unwritableReason(destination)?.let { return@withContext OpResult(false, 0, 0, it) }
             val cache = HashMap<String, MutableSet<String>>()
             var done = 0
             var bytes = 0L
@@ -234,6 +239,18 @@ class FileOpsEngine(
         if (node.isDirectory) runCatching { metadataRepository.invalidateUri(node.uri.toString()) }
     }
 
+    /**
+     * Fail fast with a human-readable reason when nothing could be written anyway: a file://
+     * destination without the runtime storage permission. (A reinstall restores app data — and
+     * the "permissions already asked" flag — from backup, while Android resets the grants;
+     * every operation would otherwise fail with just a file name and no explanation.)
+     */
+    private fun unwritableReason(destination: DocNode): String? {
+        if (destination.uri.scheme != ContentResolver.SCHEME_FILE) return null
+        if (Permissions.hasStorageAccess(context)) return null
+        return context.getString(R.string.error_no_storage_permission)
+    }
+
     // ------------------------------------------------------------------
     // ZIP / UNZIP
     // ------------------------------------------------------------------
@@ -248,6 +265,7 @@ class FileOpsEngine(
             // Zipping a folder into itself writes the archive inside the tree being read.
             return@withContext OpResult(false, 0, 0, archiveName)
         }
+        unwritableReason(destination)?.let { return@withContext OpResult(false, 0, 0, it) }
         val cache = HashMap<String, MutableSet<String>>()
         val name = if (archiveName.endsWith(".zip", true)) archiveName else "$archiveName.zip"
         val archive = docRepository.createFile(destination, uniqueName(destination, name, cache), "application/zip")
@@ -339,6 +357,7 @@ class FileOpsEngine(
 
     suspend fun unzip(archive: DocNode, destination: DocNode, ctx: OpContext): OpResult =
         withContext(Dispatchers.IO) {
+            unwritableReason(destination)?.let { return@withContext OpResult(false, 0, 0, it) }
             val input = docRepository.openInput(archive.uri)
                 ?: return@withContext OpResult(false, 0, 0, archive.name)
             val token = ctx.stagingToken.ifEmpty { OpsSafety.newToken() }

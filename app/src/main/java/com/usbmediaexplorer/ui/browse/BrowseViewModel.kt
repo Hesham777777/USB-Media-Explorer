@@ -26,6 +26,7 @@ import com.usbmediaexplorer.data.store.RecentEntry
 import com.usbmediaexplorer.data.volume.GrantKind
 import com.usbmediaexplorer.data.volume.VolumeInfo
 import com.usbmediaexplorer.di.AppContainer
+import com.usbmediaexplorer.util.Permissions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
@@ -741,6 +742,18 @@ class BrowseViewModel(
         }
     }
 
+    /**
+     * Why a create failed, honestly: a reinstall restores app data (including the
+     * "permissions asked" flag) from backup while Android resets the actual grants — without
+     * this the user only ever saw "name exists" while the real cause was a missing permission.
+     */
+    private fun createResultMessage(created: DocNode?, parent: DocNode): Int = when {
+        created != null -> R.string.msg_created
+        parent.uri.scheme == "content" -> R.string.error_create_failed
+        !Permissions.hasStorageAccess(context) -> R.string.error_no_storage_permission
+        else -> R.string.error_name_exists
+    }
+
     fun createFolder(name: String) {
         val parent = currentNode.value ?: return
         if (name.isBlank()) {
@@ -749,11 +762,7 @@ class BrowseViewModel(
         }
         viewModelScope.launch {
             val created = docRepository.createDirectory(parent, name)
-            message(
-                context.getString(
-                    if (created != null) R.string.msg_created else R.string.error_name_exists,
-                ),
-            )
+            message(context.getString(createResultMessage(created, parent)))
             if (created != null) reload()
         }
     }
@@ -766,11 +775,7 @@ class BrowseViewModel(
         }
         viewModelScope.launch {
             val created = docRepository.createFile(parent, name)
-            message(
-                context.getString(
-                    if (created != null) R.string.msg_created else R.string.error_name_exists,
-                ),
-            )
+            message(context.getString(createResultMessage(created, parent)))
             if (created != null) reload()
         }
     }
